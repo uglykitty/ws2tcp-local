@@ -4,12 +4,14 @@
 
 `ws2tcp-local` is a local HTTP proxy client for `ws2tcp-router`.
 
-It accepts local browser proxy connections and opens a WebSocket tunnel to a
-remote router for each requested TCP target. It supports both HTTP `CONNECT`
-tunnels and ordinary `http://` proxy requests.
+It accepts local browser proxy connections and routes each requested TCP target
+with a built-in gfwlist domain set. Matched domains go through the remote
+WebSocket router, and unmatched domains connect directly. It supports both HTTP
+`CONNECT` tunnels and ordinary `http://` proxy requests.
 
 ```text
-browser -> ws2tcp-local -> ws://gateway/tcp:<host>:<port> -> ws2tcp-router -> <host>:<port>
+matched:   browser -> ws2tcp-local -> ws://gateway/tcp:<host>:<port> -> ws2tcp-router -> <host>:<port>
+unmatched: browser -> ws2tcp-local -> <host>:<port>
 ```
 
 For example, when a browser sends a tunnel request:
@@ -34,6 +36,15 @@ GET http://example.com/path HTTP/1.1
 
 `ws2tcp-local` connects to `tcp:example.com:80`, rewrites the request to
 origin-form, and forwards the response back to the client.
+
+On startup, `ws2tcp-local` downloads and parses the original gfwlist from:
+
+```text
+https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
+```
+
+The URL is built into the program. If the download or parsing step fails,
+`ws2tcp-local` falls back to sending all domains through the WebSocket gateway.
 
 ## Build
 

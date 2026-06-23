@@ -9,12 +9,14 @@ mod auth;
 mod cli;
 mod gateway;
 mod http_proxy;
+mod routing_rules;
 mod settings;
 mod tunnel;
 
 use auth::remote_basic_auth;
 use cli::Args;
 use gateway::Gateway;
+use routing_rules::RoutingRules;
 use settings::Settings;
 use tunnel::{Config, handle_client};
 
@@ -25,17 +27,25 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     let settings = Settings::resolve(args)?;
     init_logging(settings.log_level.as_deref())?;
+    let routing_rules = RoutingRules::load().await;
 
     let config = Arc::new(Config {
         gateway: Gateway::parse(&settings.gateway)?,
         basic_auth: remote_basic_auth(settings.basic_auth)?,
         buffer_size: settings.buffer_size,
+        routing_rules,
     });
     let listener = TcpListener::bind(settings.listen)
         .await
         .map_err(|err| anyhow!("failed to bind {}: {err}", settings.listen))?;
 
-    info!(listen = %settings.listen, gateway = %config.gateway.base(), "listening");
+    info!(
+        listen = %settings.listen,
+        gateway = %config.gateway.base(),
+        routing_rules = %config.routing_rules,
+        routing_rules_detail = %config.routing_rules.describe(),
+        "listening"
+    );
 
     loop {
         let (stream, peer_addr) = listener

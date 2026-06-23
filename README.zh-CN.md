@@ -5,13 +5,23 @@
 `ws2tcp-local` 是一个本地 HTTP 代理客户端，用于配合
 `ws2tcp-router` 使用。
 
-它接收浏览器或其他客户端的本地代理请求，并为每个目标 TCP 地址通过
-WebSocket 连接远端 router。它同时支持 HTTP `CONNECT` 隧道请求和普通
-`http://` 代理请求。
+它接收浏览器或其他客户端的本地代理请求，并使用内置 gfwlist 域名规则为每个
+目标 TCP 地址选择路由。命中规则的域名会通过远端 WebSocket router，未命中的
+域名会本地直连。它同时支持 HTTP `CONNECT` 隧道请求和普通 `http://` 代理请求。
 
 ```text
-browser -> ws2tcp-local -> ws://gateway/tcp:<host>:<port> -> ws2tcp-router -> <host>:<port>
+命中规则: browser -> ws2tcp-local -> ws://gateway/tcp:<host>:<port> -> ws2tcp-router -> <host>:<port>
+未命中:   browser -> ws2tcp-local -> <host>:<port>
 ```
+
+启动时，`ws2tcp-local` 会从下面的原始 URL 下载并解析 gfwlist：
+
+```text
+https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
+```
+
+该 URL 硬编码在程序中。如果下载或解析失败，`ws2tcp-local` 会回退为所有域名都
+通过 WebSocket gateway。
 
 ## 构建
 

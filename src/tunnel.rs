@@ -3,20 +3,25 @@ use std::{net::SocketAddr, sync::Arc};
 use anyhow::{Context, Result};
 use futures_util::{SinkExt, StreamExt};
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt, copy_bidirectional},
     net::TcpStream,
 };
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, info};
 
-use crate::{gateway::Gateway, http_proxy::read_proxy_request};
+use crate::{
+    gateway::Gateway,
+    http_proxy::read_proxy_request,
+    routing_rules::{RoutingRules, host_from_authority},
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Config {
     pub(crate) gateway: Gateway,
     pub(crate) basic_auth: Option<String>,
     pub(crate) buffer_size: usize,
+    pub(crate) routing_rules: RoutingRules,
 }
 
 pub(crate) async fn handle_client(
@@ -31,6 +36,23 @@ pub(crate) async fn handle_client(
             return Err(err);
         }
     };
+    let authority = request.authority().to_owned();
+    let host = host_from_authority(&authority)?;
+    let should_proxy = config.routing_rules.should_proxy_host(host);
+
+    if !should_proxy {
+        return handle_direct(client, peer_addr, request).await;
+    }
+
+    handle_gateway(client, peer_addr, request, config).await
+}
+
+async fn handle_gateway(
+    mut client: TcpStream,
+    peer_addr: SocketAddr,
+    request: crate::http_proxy::ProxyRequest,
+    config: Arc<Config>,
+) -> Result<()> {
     let ws_url = config.gateway.target_url(request.authority());
 
     info!(%peer_addr, target = %request.authority(), gateway = %ws_url, kind = request.log_kind(), "proxying request");
@@ -67,6 +89,47 @@ pub(crate) async fn handle_client(
     }
 
     proxy(client, websocket, initial_client_bytes, config.buffer_size).await
+}
+
+async fn handle_direct(
+    mut client: TcpStream,
+    peer_addr: SocketAddr,
+    request: crate::http_proxy::ProxyRequest,
+) -> Result<()> {
+    let authority = request.authority().to_owned();
+
+    info!(%peer_addr, target = %authority, kind = request.log_kind(), "direct request");
+
+    let mut upstream = match TcpStream::connect(&authority).await {
+        Ok(upstream) => upstream,
+        Err(err) => {
+            let _ = write_http_error(&mut client, "502 Bad Gateway").await;
+            return Err(err).with_context(|| format!("failed to connect target {authority}"));
+        }
+    };
+
+    let is_connect = request.is_connect();
+    let initial_client_bytes = request.initial_client_bytes();
+
+    if is_connect {
+        client
+            .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+            .await
+            .context("write CONNECT success response failed")?;
+    }
+
+    if !initial_client_bytes.is_empty() {
+        upstream
+            .write_all(&initial_client_bytes)
+            .await
+            .context("write buffered client bytes to direct upstream failed")?;
+    }
+
+    copy_bidirectional(&mut client, &mut upstream)
+        .await
+        .context("direct TCP proxy failed")?;
+
+    Ok(())
 }
 
 async fn write_http_error(client: &mut TcpStream, status: &str) -> Result<()> {

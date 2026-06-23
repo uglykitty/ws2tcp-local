@@ -11,6 +11,10 @@ log_level = "ws2tcp_local=info"
 
 # Use a path prefix, for example wss://example.com/router, only when a reverse
 # proxy strips that prefix before forwarding to ws2tcp-router.
+#
+# At startup, ws2tcp-local downloads the built-in gfwlist URL and routes
+# matched domains through this gateway. Unmatched domains connect directly. If
+# rule loading fails, all domains are routed through the gateway.
 
 # Optional. Prefer --basic-auth or WS2TCP_LOCAL_BASIC_AUTH for real credentials.
 # basic_auth = "user:pass"
