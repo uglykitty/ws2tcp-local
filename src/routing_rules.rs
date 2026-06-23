@@ -8,6 +8,8 @@ use anyhow::{Context, Result, anyhow, bail};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use tracing::{info, warn};
 
+use crate::cli::ProxyMode;
+
 const GFWLIST_URL: &str = "https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt";
 
 #[derive(Debug, Clone)]
@@ -16,11 +18,17 @@ pub(crate) enum RoutingRules {
         rules: DomainRules,
         custom_domain_rules: Option<PathBuf>,
     },
-    AllProxy,
+    GlobalProxy,
+    AllProxyFallback,
 }
 
 impl RoutingRules {
-    pub(crate) async fn load(custom_domain_rules: Option<&Path>) -> Self {
+    pub(crate) async fn load(proxy_mode: ProxyMode, custom_domain_rules: Option<&Path>) -> Self {
+        if proxy_mode == ProxyMode::Global {
+            info!("using global proxy mode; skipping proxy routing rule download");
+            return Self::GlobalProxy;
+        }
+
         match Self::download_and_parse(custom_domain_rules).await {
             Ok(rules) => {
                 info!(
@@ -42,7 +50,7 @@ impl RoutingRules {
                     error = %format_args!("{err:#}"),
                     "failed to load proxy routing rules; proxying all domains"
                 );
-                Self::AllProxy
+                Self::AllProxyFallback
             }
         }
     }
@@ -50,14 +58,15 @@ impl RoutingRules {
     pub(crate) fn should_proxy_host(&self, host: &str) -> bool {
         match self {
             Self::Domains { rules, .. } => rules.matches(host),
-            Self::AllProxy => true,
+            Self::GlobalProxy | Self::AllProxyFallback => true,
         }
     }
 
     fn mode(&self) -> &'static str {
         match self {
-            Self::Domains { .. } => "gfwlist",
-            Self::AllProxy => "all-proxy",
+            Self::Domains { .. } => "auto",
+            Self::GlobalProxy => "global",
+            Self::AllProxyFallback => "all-proxy",
         }
     }
 
@@ -76,7 +85,10 @@ impl RoutingRules {
                 rules,
                 custom_domain_rules: None,
             } => format!("{} domains from {}", rules.len(), GFWLIST_URL),
-            Self::AllProxy => format!("all domains via proxy; failed to load {GFWLIST_URL}"),
+            Self::GlobalProxy => "all domains via proxy; proxy mode is global".to_owned(),
+            Self::AllProxyFallback => {
+                format!("all domains via proxy; failed to load {GFWLIST_URL}")
+            }
         }
     }
 
@@ -304,5 +316,28 @@ bad:domain
             host_from_authority("[2001:db8::1]:443").unwrap(),
             "2001:db8::1"
         );
+    }
+
+    #[test]
+    fn global_proxy_matches_every_host() {
+        let rules = RoutingRules::GlobalProxy;
+
+        assert!(rules.should_proxy_host("example.com"));
+        assert_eq!(rules.to_string(), "global");
+        assert_eq!(
+            rules.describe(),
+            "all domains via proxy; proxy mode is global"
+        );
+    }
+
+    #[tokio::test]
+    async fn global_proxy_load_skips_rule_files() {
+        let rules = RoutingRules::load(
+            ProxyMode::Global,
+            Some(Path::new("/definitely/missing/custom-domains.txt")),
+        )
+        .await;
+
+        assert!(matches!(rules, RoutingRules::GlobalProxy));
     }
 }

@@ -7,7 +7,7 @@ use std::{
 use anyhow::{Context, Result, anyhow, bail};
 use serde::Deserialize;
 
-use crate::cli::{Args, DEFAULT_BUFFER_SIZE, DEFAULT_LISTEN};
+use crate::cli::{Args, DEFAULT_BUFFER_SIZE, DEFAULT_LISTEN, ProxyMode};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Settings {
@@ -17,6 +17,7 @@ pub(crate) struct Settings {
     pub(crate) buffer_size: usize,
     pub(crate) log_level: Option<String>,
     pub(crate) custom_domain_rules: Option<PathBuf>,
+    pub(crate) proxy_mode: ProxyMode,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -27,6 +28,7 @@ struct FileSettings {
     buffer_size: Option<usize>,
     log_level: Option<String>,
     custom_domain_rules: Option<PathBuf>,
+    proxy_mode: Option<ProxyMode>,
 }
 
 impl Settings {
@@ -67,6 +69,10 @@ impl Settings {
                     .custom_domain_rules
                     .map(|path| resolve_config_relative_path(path, config_dir.as_deref()))
             }),
+            proxy_mode: args
+                .proxy_mode
+                .or(file_settings.proxy_mode)
+                .unwrap_or(ProxyMode::Auto),
         })
     }
 }
@@ -102,6 +108,7 @@ mod tests {
             buffer_size: None,
             log_level: None,
             custom_domain_rules: None,
+            proxy_mode: None,
         }
     }
 
@@ -120,6 +127,7 @@ mod tests {
             buffer_size: Some(4096),
             log_level: Some("debug".to_owned()),
             custom_domain_rules: Some("cli-domains.txt".into()),
+            proxy_mode: Some(ProxyMode::Global),
         })
         .unwrap();
 
@@ -132,6 +140,7 @@ mod tests {
             settings.custom_domain_rules.as_deref(),
             Some(Path::new("cli-domains.txt"))
         );
+        assert_eq!(settings.proxy_mode, ProxyMode::Global);
     }
 
     #[test]
@@ -150,6 +159,7 @@ basic_auth = "file:secret"
 buffer_size = 1024
 log_level = "info"
 custom_domain_rules = "file-domains.txt"
+proxy_mode = "auto"
 "#,
         )
         .unwrap();
@@ -162,6 +172,7 @@ custom_domain_rules = "file-domains.txt"
             buffer_size: Some(2048),
             log_level: Some("debug".to_owned()),
             custom_domain_rules: Some("cli-domains.txt".into()),
+            proxy_mode: Some(ProxyMode::Global),
         })
         .unwrap();
         let _ = fs::remove_file(&config_path);
@@ -175,6 +186,7 @@ custom_domain_rules = "file-domains.txt"
             settings.custom_domain_rules.as_deref(),
             Some(Path::new("cli-domains.txt"))
         );
+        assert_eq!(settings.proxy_mode, ProxyMode::Global);
     }
 
     #[test]
@@ -192,6 +204,7 @@ gateway = "wss://file.example/ws"
 buffer_size = 8192
 log_level = "info"
 custom_domain_rules = "custom-domains.txt"
+proxy_mode = "global"
 "#,
         )
         .unwrap();
@@ -208,5 +221,6 @@ custom_domain_rules = "custom-domains.txt"
             settings.custom_domain_rules.as_deref(),
             Some(config_path.with_file_name("custom-domains.txt").as_path())
         );
+        assert_eq!(settings.proxy_mode, ProxyMode::Global);
     }
 }

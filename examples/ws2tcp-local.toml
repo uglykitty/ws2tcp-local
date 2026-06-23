@@ -8,6 +8,7 @@ listen = "127.0.0.1:8000"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
+proxy_mode = "auto"
 
 # Use a path prefix, for example wss://example.com/router, only when a reverse
 # proxy strips that prefix before forwarding to ws2tcp-router.
@@ -15,6 +16,10 @@ log_level = "ws2tcp_local=info"
 # At startup, ws2tcp-local downloads the built-in gfwlist URL and routes
 # matched domains through this gateway. Unmatched domains connect directly. If
 # rule loading fails, all domains are routed through the gateway.
+#
+# Optional. Use "auto" to route only matched domains through the gateway, or
+# "global" to route every request through the gateway without downloading rules.
+# proxy_mode = "auto"
 #
 # Optional. Merge one Squid dstdomain entry per line with the built-in gfwlist.
 # Relative paths are resolved from this config file's directory.

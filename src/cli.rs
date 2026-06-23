@@ -1,6 +1,7 @@
 use std::{net::SocketAddr, path::PathBuf};
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
+use serde::Deserialize;
 
 pub(crate) const DEFAULT_BUFFER_SIZE: usize = 16 * 1024;
 pub(crate) const DEFAULT_LISTEN: &str = "127.0.0.1:8000";
@@ -40,4 +41,15 @@ pub(crate) struct Args {
     /// Custom domain rules file, one Squid dstdomain entry per line.
     #[arg(long)]
     pub(crate) custom_domain_rules: Option<PathBuf>,
+
+    /// Proxy mode: auto uses gfwlist rules, global proxies every request.
+    #[arg(long)]
+    pub(crate) proxy_mode: Option<ProxyMode>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ValueEnum)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum ProxyMode {
+    Auto,
+    Global,
 }

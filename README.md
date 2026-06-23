@@ -5,9 +5,11 @@
 `ws2tcp-local` is a local HTTP proxy client for `ws2tcp-router`.
 
 It accepts local browser proxy connections and routes each requested TCP target
-with a built-in gfwlist domain set. Matched domains go through the remote
-WebSocket router, and unmatched domains connect directly. It supports both HTTP
-`CONNECT` tunnels and ordinary `http://` proxy requests.
+in auto proxy mode with a built-in gfwlist domain set. Matched domains go
+through the remote WebSocket router, and unmatched domains connect directly. In
+global proxy mode, every request goes through the remote WebSocket router and
+`ws2tcp-local` does not download gfwlist. It supports both HTTP `CONNECT`
+tunnels and ordinary `http://` proxy requests.
 
 ```text
 matched:   browser -> ws2tcp-local -> ws://gateway/tcp:<host>:<port> -> ws2tcp-router -> <host>:<port>
@@ -46,6 +48,7 @@ https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
 The URL is built into the program. If the download or parsing step fails,
 `ws2tcp-local` falls back to sending all domains through the WebSocket gateway.
 You can also merge a custom domain rules file from the TOML configuration.
+Set proxy mode to `global` to skip rule loading and proxy every request.
 
 ## Build
 
@@ -96,6 +99,7 @@ listen = "127.0.0.1:8000"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
+proxy_mode = "auto"
 custom_domain_rules = "custom-domains.txt"
 ```
 
@@ -131,6 +135,13 @@ You can also provide the same file directly on the command line:
 cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.txt
 ```
 
+Proxy mode can also be set from the command line. `auto` is the default;
+`global` routes every request through the gateway and skips gfwlist download:
+
+```bash
+cargo run -- --gateway wss://example.com --proxy-mode global
+```
+
 ## Options
 
 ```text
@@ -145,6 +156,7 @@ cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.tx
 --log-level <FILTER>   Logging filter, overriding RUST_LOG. Example: ws2tcp_local=debug
 --custom-domain-rules <PATH>
                        Custom domain rules file, one Squid dstdomain entry per line
+--proxy-mode <MODE>    Proxy mode: auto or global. Default: auto
 ```
 
 ## License

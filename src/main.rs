@@ -27,7 +27,8 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     let settings = Settings::resolve(args)?;
     init_logging(settings.log_level.as_deref())?;
-    let routing_rules = RoutingRules::load(settings.custom_domain_rules.as_deref()).await;
+    let routing_rules =
+        RoutingRules::load(settings.proxy_mode, settings.custom_domain_rules.as_deref()).await;
 
     let config = Arc::new(Config {
         gateway: Gateway::parse(&settings.gateway)?,

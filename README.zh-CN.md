@@ -5,9 +5,11 @@
 `ws2tcp-local` 是一个本地 HTTP 代理客户端，用于配合
 `ws2tcp-router` 使用。
 
-它接收浏览器或其他客户端的本地代理请求，并使用内置 gfwlist 域名规则为每个
-目标 TCP 地址选择路由。命中规则的域名会通过远端 WebSocket router，未命中的
-域名会本地直连。它同时支持 HTTP `CONNECT` 隧道请求和普通 `http://` 代理请求。
+它接收浏览器或其他客户端的本地代理请求。自动代理模式下，它使用内置 gfwlist
+域名规则为每个目标 TCP 地址选择路由：命中规则的域名会通过远端 WebSocket
+router，未命中的域名会本地直连。全局代理模式下，所有请求都会通过远端
+WebSocket router，且不会下载 gfwlist。它同时支持 HTTP `CONNECT` 隧道请求和
+普通 `http://` 代理请求。
 
 ```text
 命中规则: browser -> ws2tcp-local -> ws://gateway/tcp:<host>:<port> -> ws2tcp-router -> <host>:<port>
@@ -23,6 +25,7 @@ https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
 该 URL 硬编码在程序中。如果下载或解析失败，`ws2tcp-local` 会回退为所有域名都
 通过 WebSocket gateway。
 也可以通过 TOML 配置文件合并自定义域名规则文件。
+将代理模式设为 `global` 时会跳过规则加载，并代理所有请求。
 
 ## 构建
 
@@ -74,6 +77,7 @@ listen = "127.0.0.1:8000"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
+proxy_mode = "auto"
 custom_domain_rules = "custom-domains.txt"
 ```
 
@@ -108,6 +112,13 @@ cargo run -- --config ws2tcp-local.toml --listen 127.0.0.1:9000
 cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.txt
 ```
 
+代理模式也可以通过命令行指定。`auto` 是默认值；`global` 会将所有请求通过
+gateway，并跳过 gfwlist 下载：
+
+```bash
+cargo run -- --gateway wss://example.com --proxy-mode global
+```
+
 ## 参数
 
 ```text
@@ -122,6 +133,7 @@ cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.tx
 --log-level <FILTER>   日志过滤器，会覆盖 RUST_LOG。例如：ws2tcp_local=debug
 --custom-domain-rules <PATH>
                        自定义域名规则文件，每行一个 Squid dstdomain 条目
+--proxy-mode <MODE>    代理模式：auto 或 global。默认值：auto
 ```
 
 ## 许可证
