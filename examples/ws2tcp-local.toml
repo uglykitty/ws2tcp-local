@@ -5,9 +5,12 @@
 # WS2TCP_LOCAL_BASIC_AUTH for sensitive values.
 
 listen = "127.0.0.1:8000"
-gateway = "wss://example.com/websocat"
+gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
+
+# Use a path prefix, for example wss://example.com/router, only when a reverse
+# proxy strips that prefix before forwarding to ws2tcp-router.
 
 # Optional. Prefer --basic-auth or WS2TCP_LOCAL_BASIC_AUTH for real credentials.
 # basic_auth = "user:pass"

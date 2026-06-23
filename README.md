@@ -52,26 +52,36 @@ Then configure Chrome or Firefox to use `127.0.0.1:8000` as an HTTP proxy.
 If the remote router requires HTTP Basic authentication:
 
 ```bash
-cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com/websocat --basic-auth user:pass
+cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com --basic-auth user:pass
 ```
 
 Or use an environment variable:
 
 ```bash
-WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://example.com/websocat
+WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://example.com
 ```
 
 `wss://` gateways are supported:
 
 ```bash
-cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com/router
+cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com
 ```
+
+When connecting directly to `ws2tcp-router`, the gateway URL should not include a
+path prefix: `ws2tcp-local` appends `/tcp:<host>:<port>`, and `ws2tcp-router`
+expects the final WebSocket request path to start with `/tcp:`.
+
+Use a gateway path such as `wss://example.com/router` only when a reverse proxy
+in front of `ws2tcp-router` strips that prefix before forwarding the WebSocket
+upgrade request. In that deployment, `ws2tcp-local` connects to
+`/router/tcp:<host>:<port>`, and the reverse proxy must forward it to
+`ws2tcp-router` as `/tcp:<host>:<port>`.
 
 Configuration files are also supported:
 
 ```toml
 listen = "127.0.0.1:8000"
-gateway = "wss://example.com/router"
+gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 ```

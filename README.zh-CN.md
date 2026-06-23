@@ -30,14 +30,29 @@ cargo run -- --listen 127.0.0.1:8000 --gateway ws://1.2.3.4:8000
 如果远端 router 需要 HTTP Basic 认证：
 
 ```bash
-cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com/websocat --basic-auth user:pass
+cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com --basic-auth user:pass
 ```
 
 也可以使用环境变量：
 
 ```bash
-WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://example.com/websocat
+WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://example.com
 ```
+
+`wss://` gateway 也受支持：
+
+```bash
+cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com
+```
+
+直连 `ws2tcp-router` 时，gateway URL 不应包含路径前缀：
+`ws2tcp-local` 会在后面追加 `/tcp:<host>:<port>`，而
+`ws2tcp-router` 要求最终的 WebSocket 请求路径以 `/tcp:` 开头。
+
+只有当前面有反向代理，并且反向代理会在转发 WebSocket upgrade 请求前剥离
+路径前缀时，才使用 `wss://example.com/router` 这类 gateway。此时
+`ws2tcp-local` 会连接 `/router/tcp:<host>:<port>`，反向代理必须把它转发为
+`/tcp:<host>:<port>` 给 `ws2tcp-router`。
 
 ## 配置文件
 
@@ -45,7 +60,7 @@ WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://example.com/webso
 
 ```toml
 listen = "127.0.0.1:8000"
-gateway = "wss://example.com/router"
+gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 ```
