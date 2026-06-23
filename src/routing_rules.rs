@@ -126,7 +126,7 @@ fn parse_gfwlist_text(text: &str) -> Result<DomainRules> {
 }
 
 fn parse_proxy_rule_domain(line: &str) -> Option<String> {
-    let rule = line.strip_prefix("||")?;
+    let rule = line.strip_prefix("||").or_else(|| line.strip_prefix('.'))?;
     if rule.contains('*') {
         return None;
     }
@@ -188,6 +188,7 @@ mod tests {
 ||example.org^
 ||example.edu$third-party
 ||wild*.blocked.test
+.leading-dot.example
 |http://ignored.example
 ";
         let encoded = STANDARD.encode(text);
@@ -198,6 +199,7 @@ mod tests {
         assert!(rules.matches("example.net"));
         assert!(rules.matches("a.example.org"));
         assert!(rules.matches("example.edu"));
+        assert!(rules.matches("www.leading-dot.example"));
         assert!(!rules.matches("wild.blocked.test"));
         assert!(!rules.matches("ignored.example"));
     }
