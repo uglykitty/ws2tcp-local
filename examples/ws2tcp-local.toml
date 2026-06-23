@@ -1,0 +1,13 @@
+# Example configuration for ws2tcp-local.
+#
+# Command-line arguments override values from this file.
+# Do not commit real credentials here. Prefer --basic-auth or
+# WS2TCP_LOCAL_BASIC_AUTH for sensitive values.
+
+listen = "127.0.0.1:8000"
+gateway = "wss://example.com/websocat"
+buffer_size = 16384
+log_level = "ws2tcp_local=info"
+
+# Optional. Prefer --basic-auth or WS2TCP_LOCAL_BASIC_AUTH for real credentials.
+# basic_auth = "user:pass"
