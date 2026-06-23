@@ -62,9 +62,11 @@ impl Settings {
             basic_auth: args.basic_auth.or(file_settings.basic_auth),
             buffer_size,
             log_level: args.log_level.or(file_settings.log_level),
-            custom_domain_rules: file_settings
-                .custom_domain_rules
-                .map(|path| resolve_config_relative_path(path, config_dir.as_deref())),
+            custom_domain_rules: args.custom_domain_rules.or_else(|| {
+                file_settings
+                    .custom_domain_rules
+                    .map(|path| resolve_config_relative_path(path, config_dir.as_deref()))
+            }),
         })
     }
 }
@@ -99,6 +101,7 @@ mod tests {
             basic_auth: None,
             buffer_size: None,
             log_level: None,
+            custom_domain_rules: None,
         }
     }
 
@@ -116,6 +119,7 @@ mod tests {
             basic_auth: Some("user:pass".to_owned()),
             buffer_size: Some(4096),
             log_level: Some("debug".to_owned()),
+            custom_domain_rules: Some("cli-domains.txt".into()),
         })
         .unwrap();
 
@@ -124,7 +128,10 @@ mod tests {
         assert_eq!(settings.basic_auth.as_deref(), Some("user:pass"));
         assert_eq!(settings.buffer_size, 4096);
         assert_eq!(settings.log_level.as_deref(), Some("debug"));
-        assert_eq!(settings.custom_domain_rules, None);
+        assert_eq!(
+            settings.custom_domain_rules.as_deref(),
+            Some(Path::new("cli-domains.txt"))
+        );
     }
 
     #[test]
@@ -154,6 +161,7 @@ custom_domain_rules = "file-domains.txt"
             basic_auth: Some("cli:secret".to_owned()),
             buffer_size: Some(2048),
             log_level: Some("debug".to_owned()),
+            custom_domain_rules: Some("cli-domains.txt".into()),
         })
         .unwrap();
         let _ = fs::remove_file(&config_path);
@@ -165,7 +173,7 @@ custom_domain_rules = "file-domains.txt"
         assert_eq!(settings.log_level.as_deref(), Some("debug"));
         assert_eq!(
             settings.custom_domain_rules.as_deref(),
-            Some(config_path.with_file_name("file-domains.txt").as_path())
+            Some(Path::new("cli-domains.txt"))
         );
     }
 

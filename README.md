@@ -125,6 +125,12 @@ lines and `#` comments are ignored:
 Relative `custom_domain_rules` paths are resolved from the config file's
 directory.
 
+You can also provide the same file directly on the command line:
+
+```bash
+cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.txt
+```
+
 ## Options
 
 ```text
@@ -137,6 +143,8 @@ directory.
                        Falls back to WS2TCP_LOCAL_BASIC_AUTH when omitted
 --buffer-size <BYTES>  TCP read buffer size. Default: 16384
 --log-level <FILTER>   Logging filter, overriding RUST_LOG. Example: ws2tcp_local=debug
+--custom-domain-rules <PATH>
+                       Custom domain rules file, one Squid dstdomain entry per line
 ```
 
 ## License

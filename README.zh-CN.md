@@ -102,6 +102,12 @@ cargo run -- --config ws2tcp-local.toml --listen 127.0.0.1:9000
 
 相对路径形式的 `custom_domain_rules` 会按配置文件所在目录解析。
 
+也可以直接通过命令行参数指定同一个文件：
+
+```bash
+cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.txt
+```
+
 ## 参数
 
 ```text
@@ -114,6 +120,8 @@ cargo run -- --config ws2tcp-local.toml --listen 127.0.0.1:9000
                        未提供时会回退到 WS2TCP_LOCAL_BASIC_AUTH
 --buffer-size <BYTES>  TCP 读取缓冲区大小。默认值：16384
 --log-level <FILTER>   日志过滤器，会覆盖 RUST_LOG。例如：ws2tcp_local=debug
+--custom-domain-rules <PATH>
+                       自定义域名规则文件，每行一个 Squid dstdomain 条目
 ```
 
 ## 许可证

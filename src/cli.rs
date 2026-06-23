@@ -36,4 +36,8 @@ pub(crate) struct Args {
     /// Logging filter, overriding RUST_LOG. Example: ws2tcp_local=debug
     #[arg(long)]
     pub(crate) log_level: Option<String>,
+
+    /// Custom domain rules file, one Squid dstdomain entry per line.
+    #[arg(long)]
+    pub(crate) custom_domain_rules: Option<PathBuf>,
 }
