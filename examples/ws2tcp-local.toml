@@ -15,6 +15,10 @@ log_level = "ws2tcp_local=info"
 # At startup, ws2tcp-local downloads the built-in gfwlist URL and routes
 # matched domains through this gateway. Unmatched domains connect directly. If
 # rule loading fails, all domains are routed through the gateway.
+#
+# Optional. Merge one Squid dstdomain entry per line with the built-in gfwlist.
+# Relative paths are resolved from this config file's directory.
+# custom_domain_rules = "custom-domains.txt"
 
 # Optional. Prefer --basic-auth or WS2TCP_LOCAL_BASIC_AUTH for real credentials.
 # basic_auth = "user:pass"

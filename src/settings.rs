@@ -1,4 +1,8 @@
-use std::{fs, net::SocketAddr, path::Path};
+use std::{
+    fs,
+    net::SocketAddr,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result, anyhow, bail};
 use serde::Deserialize;
@@ -12,6 +16,7 @@ pub(crate) struct Settings {
     pub(crate) basic_auth: Option<String>,
     pub(crate) buffer_size: usize,
     pub(crate) log_level: Option<String>,
+    pub(crate) custom_domain_rules: Option<PathBuf>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -21,13 +26,17 @@ struct FileSettings {
     basic_auth: Option<String>,
     buffer_size: Option<usize>,
     log_level: Option<String>,
+    custom_domain_rules: Option<PathBuf>,
 }
 
 impl Settings {
     pub(crate) fn resolve(args: Args) -> Result<Self> {
-        let file_settings = match &args.config {
-            Some(path) => read_file_settings(path)?,
-            None => FileSettings::default(),
+        let (file_settings, config_dir) = match &args.config {
+            Some(path) => (
+                read_file_settings(path)?,
+                path.parent().map(Path::to_path_buf),
+            ),
+            None => (FileSettings::default(), None),
         };
 
         let listen = args
@@ -53,7 +62,21 @@ impl Settings {
             basic_auth: args.basic_auth.or(file_settings.basic_auth),
             buffer_size,
             log_level: args.log_level.or(file_settings.log_level),
+            custom_domain_rules: file_settings
+                .custom_domain_rules
+                .map(|path| resolve_config_relative_path(path, config_dir.as_deref())),
         })
+    }
+}
+
+fn resolve_config_relative_path(path: PathBuf, config_dir: Option<&Path>) -> PathBuf {
+    if path.is_absolute() {
+        return path;
+    }
+
+    match config_dir {
+        Some(dir) => dir.join(path),
+        None => path,
     }
 }
 
@@ -101,6 +124,7 @@ mod tests {
         assert_eq!(settings.basic_auth.as_deref(), Some("user:pass"));
         assert_eq!(settings.buffer_size, 4096);
         assert_eq!(settings.log_level.as_deref(), Some("debug"));
+        assert_eq!(settings.custom_domain_rules, None);
     }
 
     #[test]
@@ -118,6 +142,7 @@ gateway = "wss://file.example/ws"
 basic_auth = "file:secret"
 buffer_size = 1024
 log_level = "info"
+custom_domain_rules = "file-domains.txt"
 "#,
         )
         .unwrap();
@@ -131,13 +156,17 @@ log_level = "info"
             log_level: Some("debug".to_owned()),
         })
         .unwrap();
-        let _ = fs::remove_file(config_path);
+        let _ = fs::remove_file(&config_path);
 
         assert_eq!(settings.listen, "127.0.0.1:9000".parse().unwrap());
         assert_eq!(settings.gateway, "wss://cli.example/ws");
         assert_eq!(settings.basic_auth.as_deref(), Some("cli:secret"));
         assert_eq!(settings.buffer_size, 2048);
         assert_eq!(settings.log_level.as_deref(), Some("debug"));
+        assert_eq!(
+            settings.custom_domain_rules.as_deref(),
+            Some(config_path.with_file_name("file-domains.txt").as_path())
+        );
     }
 
     #[test]
@@ -154,17 +183,22 @@ listen = "127.0.0.1:7000"
 gateway = "wss://file.example/ws"
 buffer_size = 8192
 log_level = "info"
+custom_domain_rules = "custom-domains.txt"
 "#,
         )
         .unwrap();
 
         let settings = Settings::resolve(args_with_config(Some(config_path.clone()))).unwrap();
-        let _ = fs::remove_file(config_path);
+        let _ = fs::remove_file(&config_path);
 
         assert_eq!(settings.listen, "127.0.0.1:7000".parse().unwrap());
         assert_eq!(settings.gateway, "wss://file.example/ws");
         assert_eq!(settings.basic_auth, None);
         assert_eq!(settings.buffer_size, 8192);
         assert_eq!(settings.log_level.as_deref(), Some("info"));
+        assert_eq!(
+            settings.custom_domain_rules.as_deref(),
+            Some(config_path.with_file_name("custom-domains.txt").as_path())
+        );
     }
 }

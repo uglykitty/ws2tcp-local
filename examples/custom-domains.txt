@@ -1,0 +1,8 @@
+# One Squid dstdomain entry per line.
+# Examples:
+# .paypal.com
+# .www.paypal.com
+
+.paypal.com
+.paypalobjects.com
+.googleadservices.com

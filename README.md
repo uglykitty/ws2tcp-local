@@ -45,6 +45,7 @@ https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
 
 The URL is built into the program. If the download or parsing step fails,
 `ws2tcp-local` falls back to sending all domains through the WebSocket gateway.
+You can also merge a custom domain rules file from the TOML configuration.
 
 ## Build
 
@@ -95,6 +96,7 @@ listen = "127.0.0.1:8000"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
+custom_domain_rules = "custom-domains.txt"
 ```
 
 ```bash
@@ -109,6 +111,19 @@ cargo run -- --config ws2tcp-local.toml --listen 127.0.0.1:9000
 
 An example config file is available at
 [`examples/ws2tcp-local.toml`](examples/ws2tcp-local.toml).
+
+The custom domain rules file uses one Squid `dstdomain` entry per line. Blank
+lines and `#` comments are ignored:
+
+```text
+# One Squid dstdomain entry per line.
+.paypal.com
+.paypalobjects.com
+.googleadservices.com
+```
+
+Relative `custom_domain_rules` paths are resolved from the config file's
+directory.
 
 ## Options
 

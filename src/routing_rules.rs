@@ -1,4 +1,8 @@
-use std::collections::HashSet;
+use std::{
+    collections::HashSet,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result, anyhow, bail};
 use base64::{Engine, engine::general_purpose::STANDARD};
@@ -8,24 +12,33 @@ const GFWLIST_URL: &str = "https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist
 
 #[derive(Debug, Clone)]
 pub(crate) enum RoutingRules {
-    Domains(DomainRules),
+    Domains {
+        rules: DomainRules,
+        custom_domain_rules: Option<PathBuf>,
+    },
     AllProxy,
 }
 
 impl RoutingRules {
-    pub(crate) async fn load() -> Self {
-        match Self::download_and_parse().await {
+    pub(crate) async fn load(custom_domain_rules: Option<&Path>) -> Self {
+        match Self::download_and_parse(custom_domain_rules).await {
             Ok(rules) => {
                 info!(
                     url = GFWLIST_URL,
+                    custom_domain_rules =
+                        custom_domain_rules.map(|path| path.display().to_string()),
                     domain_count = rules.len(),
                     "loaded proxy routing rules"
                 );
-                Self::Domains(rules)
+                Self::Domains {
+                    rules,
+                    custom_domain_rules: custom_domain_rules.map(Path::to_path_buf),
+                }
             }
             Err(err) => {
                 warn!(
                     url = GFWLIST_URL,
+                    custom_domain_rules = custom_domain_rules.map(|path| path.display().to_string()),
                     error = %format_args!("{err:#}"),
                     "failed to load proxy routing rules; proxying all domains"
                 );
@@ -36,26 +49,38 @@ impl RoutingRules {
 
     pub(crate) fn should_proxy_host(&self, host: &str) -> bool {
         match self {
-            Self::Domains(rules) => rules.matches(host),
+            Self::Domains { rules, .. } => rules.matches(host),
             Self::AllProxy => true,
         }
     }
 
     fn mode(&self) -> &'static str {
         match self {
-            Self::Domains(_) => "gfwlist",
+            Self::Domains { .. } => "gfwlist",
             Self::AllProxy => "all-proxy",
         }
     }
 
     pub(crate) fn describe(&self) -> String {
         match self {
-            Self::Domains(rules) => format!("{} domains from {}", rules.len(), GFWLIST_URL),
+            Self::Domains {
+                rules,
+                custom_domain_rules: Some(path),
+            } => format!(
+                "{} domains from {} plus custom rules from {}",
+                rules.len(),
+                GFWLIST_URL,
+                path.display()
+            ),
+            Self::Domains {
+                rules,
+                custom_domain_rules: None,
+            } => format!("{} domains from {}", rules.len(), GFWLIST_URL),
             Self::AllProxy => format!("all domains via proxy; failed to load {GFWLIST_URL}"),
         }
     }
 
-    async fn download_and_parse() -> Result<DomainRules> {
+    async fn download_and_parse(custom_domain_rules: Option<&Path>) -> Result<DomainRules> {
         let response = reqwest::get(GFWLIST_URL)
             .await
             .with_context(|| format!("failed to download {GFWLIST_URL}"))?
@@ -66,7 +91,19 @@ impl RoutingRules {
             .await
             .context("failed to read gfwlist response body")?;
 
-        parse_gfwlist(&body)
+        let mut rules = parse_gfwlist(&body)?;
+        if let Some(path) = custom_domain_rules {
+            let custom_domains = read_custom_domain_rules(path)?;
+            let custom_count = custom_domains.len();
+            rules.extend(custom_domains);
+            info!(
+                path = %path.display(),
+                custom_domain_count = custom_count,
+                "merged custom proxy routing rules"
+            );
+        }
+
+        Ok(rules)
     }
 }
 
@@ -86,6 +123,10 @@ impl DomainRules {
 
     fn len(&self) -> usize {
         self.domains.len()
+    }
+
+    fn extend(&mut self, domains: HashSet<String>) {
+        self.domains.extend(domains);
     }
 
     fn matches(&self, host: &str) -> bool {
@@ -123,6 +164,24 @@ fn parse_gfwlist_text(text: &str) -> Result<DomainRules> {
         .collect::<HashSet<_>>();
 
     DomainRules::new(domains)
+}
+
+fn read_custom_domain_rules(path: &Path) -> Result<HashSet<String>> {
+    let text = fs::read_to_string(path)
+        .with_context(|| format!("failed to read custom domain rules {}", path.display()))?;
+    Ok(parse_custom_domain_rules_text(&text))
+}
+
+fn parse_custom_domain_rules_text(text: &str) -> HashSet<String> {
+    text.lines()
+        .filter_map(parse_custom_domain_rule_domain)
+        .collect()
+}
+
+fn parse_custom_domain_rule_domain(line: &str) -> Option<String> {
+    let rule = line.split('#').next().unwrap_or_default().trim();
+    let domain = normalize_host_for_match(rule);
+    is_domain_like(&domain).then_some(domain)
 }
 
 fn parse_proxy_rule_domain(line: &str) -> Option<String> {
@@ -210,6 +269,29 @@ mod tests {
 
         assert!(rules.matches("WWW.Example.Com."));
         assert!(!rules.matches("badexample.com"));
+    }
+
+    #[test]
+    fn parses_custom_domain_rules() {
+        let domains = parse_custom_domain_rules_text(
+            "\
+# One Squid dstdomain entry per line.
+.paypal.com
+.www.paypal.com
+
+.googleadservices.com # inline comment
+127.0.0.1
+bad:domain
+",
+        );
+        let rules = DomainRules::new(domains).unwrap();
+
+        assert!(rules.matches("paypal.com"));
+        assert!(rules.matches("checkout.paypal.com"));
+        assert!(rules.matches("www.paypal.com"));
+        assert!(rules.matches("pagead.googleadservices.com"));
+        assert!(!rules.matches("127.0.0.1"));
+        assert!(!rules.matches("bad:domain"));
     }
 
     #[test]

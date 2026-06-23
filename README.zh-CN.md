@@ -22,6 +22,7 @@ https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
 
 该 URL 硬编码在程序中。如果下载或解析失败，`ws2tcp-local` 会回退为所有域名都
 通过 WebSocket gateway。
+也可以通过 TOML 配置文件合并自定义域名规则文件。
 
 ## 构建
 
@@ -73,6 +74,7 @@ listen = "127.0.0.1:8000"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
+custom_domain_rules = "custom-domains.txt"
 ```
 
 启动时指定配置文件：
@@ -88,6 +90,17 @@ cargo run -- --config ws2tcp-local.toml --listen 127.0.0.1:9000
 ```
 
 示例配置文件见 [`examples/ws2tcp-local.toml`](examples/ws2tcp-local.toml)。
+
+自定义域名规则文件每行一个 Squid `dstdomain` 条目，空行和 `#` 注释会被忽略：
+
+```text
+# One Squid dstdomain entry per line.
+.paypal.com
+.paypalobjects.com
+.googleadservices.com
+```
+
+相对路径形式的 `custom_domain_rules` 会按配置文件所在目录解析。
 
 ## 参数
 
