@@ -18,6 +18,7 @@ pub(crate) struct Settings {
     pub(crate) log_level: Option<String>,
     pub(crate) custom_domain_rules: Option<PathBuf>,
     pub(crate) proxy_mode: ProxyMode,
+    pub(crate) verify_server_certificate: bool,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -29,6 +30,7 @@ struct FileSettings {
     log_level: Option<String>,
     custom_domain_rules: Option<PathBuf>,
     proxy_mode: Option<ProxyMode>,
+    verify_server_certificate: Option<bool>,
 }
 
 impl Settings {
@@ -73,6 +75,11 @@ impl Settings {
                 .proxy_mode
                 .or(file_settings.proxy_mode)
                 .unwrap_or(ProxyMode::Auto),
+            verify_server_certificate: if args.verify_server_certificate {
+                true
+            } else {
+                file_settings.verify_server_certificate.unwrap_or(false)
+            },
         })
     }
 }
@@ -109,6 +116,7 @@ mod tests {
             log_level: None,
             custom_domain_rules: None,
             proxy_mode: None,
+            verify_server_certificate: false,
         }
     }
 
@@ -128,6 +136,7 @@ mod tests {
             log_level: Some("debug".to_owned()),
             custom_domain_rules: Some("cli-domains.txt".into()),
             proxy_mode: Some(ProxyMode::Global),
+            verify_server_certificate: true,
         })
         .unwrap();
 
@@ -141,6 +150,7 @@ mod tests {
             Some(Path::new("cli-domains.txt"))
         );
         assert_eq!(settings.proxy_mode, ProxyMode::Global);
+        assert!(settings.verify_server_certificate);
     }
 
     #[test]
@@ -160,6 +170,7 @@ buffer_size = 1024
 log_level = "info"
 custom_domain_rules = "file-domains.txt"
 proxy_mode = "auto"
+verify_server_certificate = true
 "#,
         )
         .unwrap();
@@ -173,6 +184,7 @@ proxy_mode = "auto"
             log_level: Some("debug".to_owned()),
             custom_domain_rules: Some("cli-domains.txt".into()),
             proxy_mode: Some(ProxyMode::Global),
+            verify_server_certificate: false,
         })
         .unwrap();
         let _ = fs::remove_file(&config_path);
@@ -187,6 +199,7 @@ proxy_mode = "auto"
             Some(Path::new("cli-domains.txt"))
         );
         assert_eq!(settings.proxy_mode, ProxyMode::Global);
+        assert!(settings.verify_server_certificate);
     }
 
     #[test]
@@ -205,6 +218,7 @@ buffer_size = 8192
 log_level = "info"
 custom_domain_rules = "custom-domains.txt"
 proxy_mode = "global"
+verify_server_certificate = true
 "#,
         )
         .unwrap();
@@ -222,5 +236,24 @@ proxy_mode = "global"
             Some(config_path.with_file_name("custom-domains.txt").as_path())
         );
         assert_eq!(settings.proxy_mode, ProxyMode::Global);
+        assert!(settings.verify_server_certificate);
+    }
+
+    #[test]
+    fn disables_server_certificate_verification_by_default() {
+        let settings = Settings::resolve(Args {
+            config: None,
+            listen: None,
+            gateway: Some("wss://example.com/ws".to_owned()),
+            basic_auth: None,
+            buffer_size: None,
+            log_level: None,
+            custom_domain_rules: None,
+            proxy_mode: None,
+            verify_server_certificate: false,
+        })
+        .unwrap();
+
+        assert!(!settings.verify_server_certificate);
     }
 }

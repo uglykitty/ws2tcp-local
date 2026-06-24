@@ -11,6 +11,7 @@ mod gateway;
 mod http_proxy;
 mod routing_rules;
 mod settings;
+mod tls;
 mod tunnel;
 
 use auth::remote_basic_auth;
@@ -35,6 +36,7 @@ async fn main() -> Result<()> {
         basic_auth: remote_basic_auth(settings.basic_auth)?,
         buffer_size: settings.buffer_size,
         routing_rules,
+        verify_server_certificate: settings.verify_server_certificate,
     });
     let listener = TcpListener::bind(settings.listen)
         .await
@@ -43,10 +45,16 @@ async fn main() -> Result<()> {
     info!(
         listen = %settings.listen,
         gateway = %config.gateway.base(),
+        verify_server_certificate = config.verify_server_certificate,
         routing_rules = %config.routing_rules,
         routing_rules_detail = %config.routing_rules.describe(),
         "listening"
     );
+    if !config.verify_server_certificate {
+        warn!(
+            "remote gateway TLS server certificate verification is disabled; use --verify-server-certificate or verify_server_certificate = true to enable it"
+        );
+    }
 
     loop {
         let (stream, peer_addr) = listener

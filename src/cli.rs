@@ -45,6 +45,10 @@ pub(crate) struct Args {
     /// Proxy mode: auto uses gfwlist rules, global proxies every request.
     #[arg(long)]
     pub(crate) proxy_mode: Option<ProxyMode>,
+
+    /// Verify the remote WebSocket gateway TLS server certificate.
+    #[arg(long)]
+    pub(crate) verify_server_certificate: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ValueEnum)]

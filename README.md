@@ -100,6 +100,7 @@ gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
+verify_server_certificate = false
 custom_domain_rules = "custom-domains.txt"
 ```
 
@@ -142,6 +143,21 @@ Proxy mode can also be set from the command line. `auto` is the default;
 cargo run -- --gateway wss://example.com --proxy-mode global
 ```
 
+For `wss://` gateways, TLS server certificate verification is disabled by
+default so self-signed `ws2tcp-router` certificates work without extra setup.
+The program logs a warning when running this way. To require normal TLS server
+certificate validation, enable it explicitly:
+
+```bash
+cargo run -- --gateway wss://example.com --verify-server-certificate
+```
+
+Or in the TOML configuration:
+
+```toml
+verify_server_certificate = true
+```
+
 ## Options
 
 ```text
@@ -157,6 +173,9 @@ cargo run -- --gateway wss://example.com --proxy-mode global
 --custom-domain-rules <PATH>
                        Custom domain rules file, one Squid dstdomain entry per line
 --proxy-mode <MODE>    Proxy mode: auto or global. Default: auto
+--verify-server-certificate
+                       Verify the remote WebSocket gateway TLS certificate.
+                       Default: disabled
 ```
 
 ## License

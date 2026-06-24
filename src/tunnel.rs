@@ -7,13 +7,14 @@ use tokio::{
     net::TcpStream,
 };
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-use tokio_tungstenite::{connect_async, tungstenite::Message};
+use tokio_tungstenite::{connect_async_tls_with_config, tungstenite::Message};
 use tracing::{debug, info};
 
 use crate::{
     gateway::Gateway,
     http_proxy::read_proxy_request,
     routing_rules::{RoutingRules, host_from_authority},
+    tls::insecure_websocket_connector,
 };
 
 #[derive(Debug, Clone)]
@@ -22,6 +23,7 @@ pub(crate) struct Config {
     pub(crate) basic_auth: Option<String>,
     pub(crate) buffer_size: usize,
     pub(crate) routing_rules: RoutingRules,
+    pub(crate) verify_server_certificate: bool,
 }
 
 pub(crate) async fn handle_client(
@@ -70,13 +72,19 @@ async fn handle_gateway(
         );
     }
 
-    let (websocket, _) = match connect_async(ws_request).await {
-        Ok(parts) => parts,
-        Err(err) => {
-            let _ = write_http_error(&mut client, "502 Bad Gateway").await;
-            return Err(err).with_context(|| format!("failed to connect gateway {ws_url}"));
-        }
+    let connector = if config.verify_server_certificate {
+        None
+    } else {
+        Some(insecure_websocket_connector())
     };
+    let (websocket, _) =
+        match connect_async_tls_with_config(ws_request, None, false, connector).await {
+            Ok(parts) => parts,
+            Err(err) => {
+                let _ = write_http_error(&mut client, "502 Bad Gateway").await;
+                return Err(err).with_context(|| format!("failed to connect gateway {ws_url}"));
+            }
+        };
 
     let is_connect = request.is_connect();
     let initial_client_bytes = request.initial_client_bytes();

@@ -78,6 +78,7 @@ gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
+verify_server_certificate = false
 custom_domain_rules = "custom-domains.txt"
 ```
 
@@ -119,6 +120,20 @@ gateway，并跳过 gfwlist 下载：
 cargo run -- --gateway wss://example.com --proxy-mode global
 ```
 
+对于 `wss://` gateway，默认不校验 TLS 服务器证书，因此自签名
+`ws2tcp-router` 证书无需额外配置即可使用。程序会在这种模式下输出警告。
+如果需要普通 TLS 服务器证书校验，可以显式开启：
+
+```bash
+cargo run -- --gateway wss://example.com --verify-server-certificate
+```
+
+或在 TOML 配置文件中设置：
+
+```toml
+verify_server_certificate = true
+```
+
 ## 参数
 
 ```text
@@ -134,6 +149,9 @@ cargo run -- --gateway wss://example.com --proxy-mode global
 --custom-domain-rules <PATH>
                        自定义域名规则文件，每行一个 Squid dstdomain 条目
 --proxy-mode <MODE>    代理模式：auto 或 global。默认值：auto
+--verify-server-certificate
+                       校验远端 WebSocket gateway 的 TLS 服务器证书。
+                       默认：不校验
 ```
 
 ## 许可证
