@@ -8,19 +8,20 @@ listen = "127.0.0.1:8000"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
-proxy_mode = "auto"
+proxy_mode = "global"
 verify_server_certificate = false
 
 # Use a path prefix, for example wss://example.com/router, only when a reverse
 # proxy strips that prefix before forwarding to ws2tcp-router.
 #
-# At startup, ws2tcp-local downloads the built-in gfwlist URL and routes
-# matched domains through this gateway. Unmatched domains connect directly. If
-# rule loading fails, all domains are routed through the gateway.
+# By default, all domains are routed through this gateway and rule loading is
+# skipped. In auto mode, ws2tcp-local downloads the built-in gfwlist URL and
+# routes matched domains through this gateway. Unmatched domains connect
+# directly. If rule loading fails, all domains are routed through the gateway.
 #
-# Optional. Use "auto" to route only matched domains through the gateway, or
-# "global" to route every request through the gateway without downloading rules.
-# proxy_mode = "auto"
+# Optional. Defaults to "global". Use "auto" to route only matched domains
+# through the gateway.
+# proxy_mode = "global"
 #
 # Optional. Defaults to false so self-signed ws2tcp-router certificates work
 # out of the box. Set to true to require normal TLS server certificate

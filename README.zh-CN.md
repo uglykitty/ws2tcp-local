@@ -77,7 +77,7 @@ listen = "127.0.0.1:8000"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
-proxy_mode = "auto"
+proxy_mode = "global"
 verify_server_certificate = false
 custom_domain_rules = "custom-domains.txt"
 ```
@@ -113,8 +113,8 @@ cargo run -- --config ws2tcp-local.toml --listen 127.0.0.1:9000
 cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.txt
 ```
 
-代理模式也可以通过命令行指定。`auto` 是默认值；`global` 会将所有请求通过
-gateway，并跳过 gfwlist 下载：
+代理模式也可以通过命令行指定。`global` 是默认值，会将所有请求通过 gateway，
+并跳过 gfwlist 下载。使用 `auto` 可以加载规则，并让未命中域名直连：
 
 ```bash
 cargo run -- --gateway wss://example.com --proxy-mode global
@@ -148,7 +148,7 @@ verify_server_certificate = true
 --log-level <FILTER>   日志过滤器，会覆盖 RUST_LOG。例如：ws2tcp_local=debug
 --custom-domain-rules <PATH>
                        自定义域名规则文件，每行一个 Squid dstdomain 条目
---proxy-mode <MODE>    代理模式：auto 或 global。默认值：auto
+--proxy-mode <MODE>    代理模式：auto 或 global。默认值：global
 --verify-server-certificate
                        校验远端 WebSocket gateway 的 TLS 服务器证书。
                        默认：不校验

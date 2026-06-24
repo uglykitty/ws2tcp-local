@@ -99,7 +99,7 @@ listen = "127.0.0.1:8000"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
-proxy_mode = "auto"
+proxy_mode = "global"
 verify_server_certificate = false
 custom_domain_rules = "custom-domains.txt"
 ```
@@ -136,8 +136,9 @@ You can also provide the same file directly on the command line:
 cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.txt
 ```
 
-Proxy mode can also be set from the command line. `auto` is the default;
-`global` routes every request through the gateway and skips gfwlist download:
+Proxy mode can also be set from the command line. `global` is the default and
+routes every request through the gateway while skipping gfwlist download.
+Use `auto` to load rules and direct-connect unmatched domains:
 
 ```bash
 cargo run -- --gateway wss://example.com --proxy-mode global
@@ -172,7 +173,7 @@ verify_server_certificate = true
 --log-level <FILTER>   Logging filter, overriding RUST_LOG. Example: ws2tcp_local=debug
 --custom-domain-rules <PATH>
                        Custom domain rules file, one Squid dstdomain entry per line
---proxy-mode <MODE>    Proxy mode: auto or global. Default: auto
+--proxy-mode <MODE>    Proxy mode: auto or global. Default: global
 --verify-server-certificate
                        Verify the remote WebSocket gateway TLS certificate.
                        Default: disabled

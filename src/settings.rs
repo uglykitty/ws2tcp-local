@@ -74,7 +74,7 @@ impl Settings {
             proxy_mode: args
                 .proxy_mode
                 .or(file_settings.proxy_mode)
-                .unwrap_or(ProxyMode::Auto),
+                .unwrap_or(ProxyMode::Global),
             verify_server_certificate: if args.verify_server_certificate {
                 true
             } else {
@@ -255,5 +255,23 @@ verify_server_certificate = true
         .unwrap();
 
         assert!(!settings.verify_server_certificate);
+    }
+
+    #[test]
+    fn uses_global_proxy_mode_by_default() {
+        let settings = Settings::resolve(Args {
+            config: None,
+            listen: None,
+            gateway: Some("wss://example.com/ws".to_owned()),
+            basic_auth: None,
+            buffer_size: None,
+            log_level: None,
+            custom_domain_rules: None,
+            proxy_mode: None,
+            verify_server_certificate: false,
+        })
+        .unwrap();
+
+        assert_eq!(settings.proxy_mode, ProxyMode::Global);
     }
 }
