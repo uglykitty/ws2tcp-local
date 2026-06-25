@@ -39,16 +39,26 @@ GET http://example.com/path HTTP/1.1
 `ws2tcp-local` connects to `tcp:example.com:80`, rewrites the request to
 origin-form, and forwards the response back to the client.
 
-On startup, `ws2tcp-local` downloads and parses the original gfwlist from:
+On startup, `ws2tcp-local` checks and parses the original gfwlist from:
 
 ```text
 https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
 ```
 
-The URL is built into the program. If the download or parsing step fails,
-`ws2tcp-local` falls back to sending all domains through the WebSocket gateway.
-You can also merge a custom domain rules file from the TOML configuration.
-Set proxy mode to `global` to skip rule loading and proxy every request.
+The URL is built into the program. The downloaded `gfwlist.txt` is cached in
+the platform cache directory:
+
+- Linux and other Unix-like systems: `$XDG_CACHE_HOME/ws2tcp-local/gfwlist.txt`,
+  or `~/.cache/ws2tcp-local/gfwlist.txt` when `XDG_CACHE_HOME` is not set.
+- macOS: `~/Library/Caches/ws2tcp-local/gfwlist.txt`.
+- Windows: `%LOCALAPPDATA%\ws2tcp-local\gfwlist.txt`.
+
+On later starts, `ws2tcp-local` compares the cached file timestamp with the
+remote `Last-Modified` timestamp and downloads again only when they differ. If
+the download or parsing step fails, `ws2tcp-local` falls back to sending all
+domains through the WebSocket gateway. You can also merge a custom domain rules
+file from the TOML configuration. Set proxy mode to `global` to skip rule
+loading and proxy every request.
 
 ## Build
 

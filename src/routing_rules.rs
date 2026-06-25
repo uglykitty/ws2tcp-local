@@ -1,16 +1,23 @@
 use std::{
     collections::HashSet,
-    fs,
+    fs::{self, FileTimes},
     path::{Path, PathBuf},
+    time::{Duration, SystemTime},
 };
 
 use anyhow::{Context, Result, anyhow, bail};
 use base64::{Engine, engine::general_purpose::STANDARD};
+use reqwest::{
+    Client,
+    header::{HeaderMap, LAST_MODIFIED},
+};
 use tracing::{info, warn};
 
 use crate::cli::ProxyMode;
 
 const GFWLIST_URL: &str = "https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt";
+const CACHE_DIR_NAME: &str = "ws2tcp-local";
+const GFWLIST_CACHE_FILE: &str = "gfwlist.txt";
 
 #[derive(Debug, Clone)]
 pub(crate) enum RoutingRules {
@@ -93,15 +100,7 @@ impl RoutingRules {
     }
 
     async fn download_and_parse(custom_domain_rules: Option<&Path>) -> Result<DomainRules> {
-        let response = reqwest::get(GFWLIST_URL)
-            .await
-            .with_context(|| format!("failed to download {GFWLIST_URL}"))?
-            .error_for_status()
-            .with_context(|| format!("failed to download {GFWLIST_URL}"))?;
-        let body = response
-            .bytes()
-            .await
-            .context("failed to read gfwlist response body")?;
+        let body = load_gfwlist_body().await?;
 
         let mut rules = parse_gfwlist(&body)?;
         if let Some(path) = custom_domain_rules {
@@ -117,6 +116,168 @@ impl RoutingRules {
 
         Ok(rules)
     }
+}
+
+async fn load_gfwlist_body() -> Result<Vec<u8>> {
+    let cache_path = gfwlist_cache_path()?;
+    let client = Client::new();
+    let remote_modified = fetch_remote_last_modified(&client).await?;
+
+    if let Some(remote_modified) = remote_modified
+        && is_cache_current(&cache_path, remote_modified)?
+    {
+        info!(
+            cache_path = %cache_path.display(),
+            url = GFWLIST_URL,
+            "using cached gfwlist"
+        );
+        return fs::read(&cache_path)
+            .with_context(|| format!("failed to read cached gfwlist {}", cache_path.display()));
+    }
+
+    let response = client
+        .get(GFWLIST_URL)
+        .send()
+        .await
+        .with_context(|| format!("failed to download {GFWLIST_URL}"))?
+        .error_for_status()
+        .with_context(|| format!("failed to download {GFWLIST_URL}"))?;
+    let downloaded_modified = parse_last_modified(response.headers()).or(remote_modified);
+    let body = response
+        .bytes()
+        .await
+        .context("failed to read gfwlist response body")?;
+    write_gfwlist_cache(&cache_path, &body, downloaded_modified)?;
+
+    Ok(body.to_vec())
+}
+
+async fn fetch_remote_last_modified(client: &Client) -> Result<Option<SystemTime>> {
+    let response = client
+        .head(GFWLIST_URL)
+        .send()
+        .await
+        .with_context(|| format!("failed to check remote gfwlist timestamp {GFWLIST_URL}"))?
+        .error_for_status()
+        .with_context(|| format!("failed to check remote gfwlist timestamp {GFWLIST_URL}"))?;
+
+    Ok(parse_last_modified(response.headers()))
+}
+
+fn parse_last_modified(headers: &HeaderMap) -> Option<SystemTime> {
+    headers
+        .get(LAST_MODIFIED)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| httpdate::parse_http_date(value).ok())
+}
+
+fn gfwlist_cache_path() -> Result<PathBuf> {
+    let cache_dir = user_cache_dir()?;
+
+    Ok(cache_dir.join(CACHE_DIR_NAME).join(GFWLIST_CACHE_FILE))
+}
+
+#[cfg(windows)]
+fn user_cache_dir() -> Result<PathBuf> {
+    if let Some(path) = std::env::var_os("LOCALAPPDATA") {
+        return Ok(PathBuf::from(path));
+    }
+
+    let profile = std::env::var_os("USERPROFILE")
+        .context("USERPROFILE is not set; cannot locate gfwlist cache")?;
+    Ok(PathBuf::from(profile).join("AppData").join("Local"))
+}
+
+#[cfg(target_os = "macos")]
+fn user_cache_dir() -> Result<PathBuf> {
+    let home = std::env::var_os("HOME").context("HOME is not set; cannot locate gfwlist cache")?;
+    Ok(PathBuf::from(home).join("Library").join("Caches"))
+}
+
+#[cfg(all(not(windows), not(target_os = "macos")))]
+fn user_cache_dir() -> Result<PathBuf> {
+    match std::env::var_os("XDG_CACHE_HOME") {
+        Some(path) => Ok(PathBuf::from(path)),
+        None => {
+            let home =
+                std::env::var_os("HOME").context("HOME is not set; cannot locate gfwlist cache")?;
+            Ok(PathBuf::from(home).join(".cache"))
+        }
+    }
+}
+
+fn is_cache_current(cache_path: &Path, remote_modified: SystemTime) -> Result<bool> {
+    let metadata = match fs::metadata(cache_path) {
+        Ok(metadata) => metadata,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(err) => {
+            return Err(err)
+                .with_context(|| format!("failed to read gfwlist cache {}", cache_path.display()));
+        }
+    };
+    let cache_modified = metadata.modified().with_context(|| {
+        format!(
+            "failed to read gfwlist cache timestamp {}",
+            cache_path.display()
+        )
+    })?;
+
+    Ok(system_times_match_to_second(
+        cache_modified,
+        remote_modified,
+    ))
+}
+
+fn write_gfwlist_cache(
+    cache_path: &Path,
+    body: &[u8],
+    remote_modified: Option<SystemTime>,
+) -> Result<()> {
+    if let Some(parent) = cache_path.parent() {
+        fs::create_dir_all(parent).with_context(|| {
+            format!(
+                "failed to create gfwlist cache directory {}",
+                parent.display()
+            )
+        })?;
+    }
+
+    fs::write(cache_path, body)
+        .with_context(|| format!("failed to write gfwlist cache {}", cache_path.display()))?;
+
+    if let Some(remote_modified) = remote_modified {
+        fs::File::options()
+            .write(true)
+            .open(cache_path)
+            .and_then(|file| file.set_times(FileTimes::new().set_modified(remote_modified)))
+            .with_context(|| {
+                format!(
+                    "failed to update gfwlist cache timestamp {}",
+                    cache_path.display()
+                )
+            })?;
+    }
+
+    info!(
+        cache_path = %cache_path.display(),
+        url = GFWLIST_URL,
+        "updated gfwlist cache"
+    );
+    Ok(())
+}
+
+fn system_times_match_to_second(left: SystemTime, right: SystemTime) -> bool {
+    left.duration_since(SystemTime::UNIX_EPOCH)
+        .ok()
+        .map(truncate_to_second)
+        == right
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .ok()
+            .map(truncate_to_second)
+}
+
+fn truncate_to_second(duration: Duration) -> Duration {
+    Duration::from_secs(duration.as_secs())
 }
 
 #[derive(Debug, Clone)]
@@ -304,6 +465,34 @@ bad:domain
         assert!(rules.matches("pagead.googleadservices.com"));
         assert!(!rules.matches("127.0.0.1"));
         assert!(!rules.matches("bad:domain"));
+    }
+
+    #[test]
+    fn parses_last_modified_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            LAST_MODIFIED,
+            "Wed, 21 Oct 2015 07:28:00 GMT".parse().unwrap(),
+        );
+
+        assert_eq!(
+            parse_last_modified(&headers).unwrap(),
+            SystemTime::UNIX_EPOCH + Duration::from_secs(1_445_412_480)
+        );
+    }
+
+    #[test]
+    fn compares_timestamps_to_second_precision() {
+        let timestamp = SystemTime::UNIX_EPOCH + Duration::from_secs(42);
+
+        assert!(system_times_match_to_second(
+            timestamp + Duration::from_millis(900),
+            timestamp
+        ));
+        assert!(!system_times_match_to_second(
+            timestamp + Duration::from_secs(1),
+            timestamp
+        ));
     }
 
     #[test]
