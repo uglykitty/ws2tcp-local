@@ -28,8 +28,12 @@ async fn main() -> Result<()> {
     let args = Args::parse();
     let settings = Settings::resolve(args)?;
     init_logging(settings.log_level.as_deref())?;
-    let routing_rules =
-        RoutingRules::load(settings.proxy_mode, settings.custom_domain_rules.as_deref()).await;
+    let routing_rules = RoutingRules::load(
+        settings.proxy_mode,
+        settings.custom_domain_rules.as_deref(),
+        settings.rule_refresh_interval,
+    )
+    .await;
 
     let config = Arc::new(Config {
         gateway: Gateway::parse(&settings.gateway)?,
@@ -46,6 +50,7 @@ async fn main() -> Result<()> {
         listen = %settings.listen,
         gateway = %config.gateway.base(),
         verify_server_certificate = config.verify_server_certificate,
+        rule_refresh_interval_secs = settings.rule_refresh_interval.as_secs(),
         routing_rules = %config.routing_rules,
         routing_rules_detail = %config.routing_rules.describe(),
         "listening"

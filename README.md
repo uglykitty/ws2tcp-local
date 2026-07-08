@@ -39,7 +39,9 @@ GET http://example.com/path HTTP/1.1
 `ws2tcp-local` connects to `tcp:example.com:80`, rewrites the request to
 origin-form, and forwards the response back to the client.
 
-On startup, `ws2tcp-local` checks and parses the original gfwlist from:
+In `auto` proxy mode, `ws2tcp-local` checks and parses the original gfwlist from
+this built-in URL at startup, then refreshes it on a configurable interval that
+defaults to 60 seconds:
 
 ```text
 https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
@@ -53,12 +55,15 @@ the platform cache directory:
 - macOS: `~/Library/Caches/ws2tcp-local/gfwlist.txt`.
 - Windows: `%LOCALAPPDATA%\ws2tcp-local\gfwlist.txt`.
 
-On later starts, `ws2tcp-local` compares the cached file timestamp with the
-remote `Last-Modified` timestamp and downloads again only when they differ. If
-the download or parsing step fails, `ws2tcp-local` falls back to sending all
-domains through the WebSocket gateway. You can also merge a custom domain rules
-file from the TOML configuration. Set proxy mode to `global` to skip rule
-loading and proxy every request.
+After a successful download, `ws2tcp-local` stores the remote `Last-Modified`
+time on the cached file. Later startup and refresh checks compare that cached
+timestamp with the remote `Last-Modified` timestamp and download again only when
+they differ. If loading fails before rules are available, `auto` mode routes
+directly by default; only hosts matching the loaded rule set use the WebSocket
+gateway. You can also merge a custom domain rules file from the TOML
+configuration; in `auto` mode, that file is checked on the same refresh interval
+and reloaded only when its modification time changes. Set proxy mode to `global`
+to skip rule loading and proxy every request.
 
 ## Build
 
@@ -112,6 +117,7 @@ log_level = "ws2tcp_local=info"
 proxy_mode = "global"
 verify_server_certificate = false
 custom_domain_rules = "custom-domains.txt"
+rule_refresh_interval_secs = 60
 ```
 
 ```bash
@@ -138,7 +144,8 @@ lines and `#` comments are ignored:
 ```
 
 Relative `custom_domain_rules` paths are resolved from the config file's
-directory.
+directory. In `auto` mode, changes to this file are picked up on the next rule
+refresh when the file modification time changes.
 
 You can also provide the same file directly on the command line:
 
@@ -183,6 +190,8 @@ verify_server_certificate = true
 --log-level <FILTER>   Logging filter, overriding RUST_LOG. Example: ws2tcp_local=debug
 --custom-domain-rules <PATH>
                        Custom domain rules file, one Squid dstdomain entry per line
+--rule-refresh-interval-secs <SECONDS>
+                       Rule list refresh interval in seconds. Default: 60
 --proxy-mode <MODE>    Proxy mode: auto or global. Default: global
 --verify-server-certificate
                        Verify the remote WebSocket gateway TLS certificate.

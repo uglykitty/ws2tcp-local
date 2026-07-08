@@ -5,6 +5,7 @@ use serde::Deserialize;
 
 pub(crate) const DEFAULT_BUFFER_SIZE: usize = 16 * 1024;
 pub(crate) const DEFAULT_LISTEN: &str = "127.0.0.1:8000";
+pub(crate) const DEFAULT_RULE_REFRESH_INTERVAL_SECS: u64 = 60;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -41,6 +42,10 @@ pub(crate) struct Args {
     /// Custom domain rules file, one Squid dstdomain entry per line.
     #[arg(long)]
     pub(crate) custom_domain_rules: Option<PathBuf>,
+
+    /// Rule list refresh interval in seconds.
+    #[arg(long)]
+    pub(crate) rule_refresh_interval_secs: Option<u64>,
 
     /// Proxy mode: auto uses gfwlist rules, global proxies every request.
     #[arg(long)]

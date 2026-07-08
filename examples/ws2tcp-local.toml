@@ -15,13 +15,18 @@ verify_server_certificate = false
 # proxy strips that prefix before forwarding to ws2tcp-router.
 #
 # By default, all domains are routed through this gateway and rule loading is
-# skipped. In auto mode, ws2tcp-local downloads the built-in gfwlist URL and
-# routes matched domains through this gateway. Unmatched domains connect
-# directly. If rule loading fails, all domains are routed through the gateway.
+# skipped. In auto mode, ws2tcp-local checks the built-in gfwlist URL at startup
+# and on the configured refresh interval, downloading only when the remote
+# Last-Modified timestamp differs from the cached file timestamp. Matched
+# domains use this gateway; unmatched domains and the initial rule-load failure
+# case connect directly.
 #
 # Optional. Defaults to "global". Use "auto" to route only matched domains
 # through the gateway.
 # proxy_mode = "global"
+#
+# Optional. Rule list refresh interval in seconds. Defaults to 60.
+# rule_refresh_interval_secs = 60
 #
 # Optional. Defaults to false so self-signed ws2tcp-router certificates work
 # out of the box. Set to true to require normal TLS server certificate
@@ -29,7 +34,9 @@ verify_server_certificate = false
 # verify_server_certificate = false
 #
 # Optional. Merge one Squid dstdomain entry per line with the built-in gfwlist.
-# Relative paths are resolved from this config file's directory.
+# Relative paths are resolved from this config file's directory. In auto mode,
+# this file is checked on the same refresh interval and reloaded only when its
+# modification time changes.
 # custom_domain_rules = "custom-domains.txt"
 
 # Optional. Prefer --basic-auth or WS2TCP_LOCAL_BASIC_AUTH for real credentials.

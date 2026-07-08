@@ -2,6 +2,7 @@ use std::{
     collections::HashSet,
     fs::{self, FileTimes},
     path::{Path, PathBuf},
+    sync::{Arc, RwLock},
     time::{Duration, SystemTime},
 };
 
@@ -20,64 +21,215 @@ const CACHE_DIR_NAME: &str = "ws2tcp-local";
 const GFWLIST_CACHE_FILE: &str = "gfwlist.txt";
 
 #[derive(Debug, Clone)]
-pub(crate) enum RoutingRules {
+pub(crate) struct RoutingRules {
+    state: Arc<RwLock<RoutingRulesState>>,
+}
+
+#[derive(Debug, Clone)]
+enum RoutingRulesState {
     Domains {
         rules: DomainRules,
         custom_domain_rules: Option<PathBuf>,
     },
     GlobalProxy,
-    AllProxyFallback,
+    DirectFallback,
 }
 
 impl RoutingRules {
-    pub(crate) async fn load(proxy_mode: ProxyMode, custom_domain_rules: Option<&Path>) -> Self {
+    pub(crate) async fn load(
+        proxy_mode: ProxyMode,
+        custom_domain_rules: Option<&Path>,
+        refresh_interval: Duration,
+    ) -> Self {
         if proxy_mode == ProxyMode::Global {
             info!("using global proxy mode; skipping proxy routing rule download");
-            return Self::GlobalProxy;
+            return Self::new(RoutingRulesState::GlobalProxy);
         }
 
-        match Self::download_and_parse(custom_domain_rules).await {
-            Ok(rules) => {
-                info!(
-                    url = GFWLIST_URL,
-                    custom_domain_rules =
-                        custom_domain_rules.map(|path| path.display().to_string()),
-                    domain_count = rules.len(),
-                    "loaded proxy routing rules"
-                );
-                Self::Domains {
-                    rules,
-                    custom_domain_rules: custom_domain_rules.map(Path::to_path_buf),
-                }
-            }
+        let mut loader = AutoRuleLoader::new(custom_domain_rules.map(Path::to_path_buf));
+        let state = match loader.load_state().await {
+            Ok(state) => state,
             Err(err) => {
                 warn!(
                     url = GFWLIST_URL,
                     custom_domain_rules = custom_domain_rules.map(|path| path.display().to_string()),
                     error = %format_args!("{err:#}"),
-                    "failed to load proxy routing rules; proxying all domains"
+                    "failed to load proxy routing rules; direct routing until rules are available"
                 );
-                Self::AllProxyFallback
+                RoutingRulesState::DirectFallback
             }
+        };
+        let rules = Self::new(state);
+        rules.spawn_auto_refresh(loader, refresh_interval);
+        rules
+    }
+
+    fn new(state: RoutingRulesState) -> Self {
+        Self {
+            state: Arc::new(RwLock::new(state)),
         }
     }
 
+    fn spawn_auto_refresh(&self, mut loader: AutoRuleLoader, refresh_interval: Duration) {
+        let state = Arc::clone(&self.state);
+
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(refresh_interval).await;
+
+                match loader.load_state().await {
+                    Ok(next_state) => {
+                        let mut guard = state.write().expect("routing rules lock poisoned");
+                        *guard = next_state;
+                    }
+                    Err(err) => {
+                        warn!(
+                            url = GFWLIST_URL,
+                            custom_domain_rules =
+                                loader.custom_domain_rules_display(),
+                            error = %format_args!("{err:#}"),
+                            "failed to refresh proxy routing rules; keeping existing rules"
+                        );
+                    }
+                }
+            }
+        });
+    }
+
     pub(crate) fn should_proxy_host(&self, host: &str) -> bool {
+        self.state
+            .read()
+            .expect("routing rules lock poisoned")
+            .should_proxy_host(host)
+    }
+
+    fn mode(&self) -> &'static str {
+        self.state
+            .read()
+            .expect("routing rules lock poisoned")
+            .mode()
+    }
+
+    pub(crate) fn describe(&self) -> String {
+        self.state
+            .read()
+            .expect("routing rules lock poisoned")
+            .describe()
+    }
+}
+
+#[derive(Debug)]
+struct AutoRuleLoader {
+    custom_domain_rules: Option<PathBuf>,
+    custom_cache: Option<CustomDomainRulesCache>,
+}
+
+#[derive(Debug, Clone)]
+struct CustomDomainRulesCache {
+    modified: SystemTime,
+    domains: HashSet<String>,
+}
+
+impl AutoRuleLoader {
+    fn new(custom_domain_rules: Option<PathBuf>) -> Self {
+        Self {
+            custom_domain_rules,
+            custom_cache: None,
+        }
+    }
+
+    async fn load_state(&mut self) -> Result<RoutingRulesState> {
+        let rules = self.download_and_parse().await?;
+        Ok(RoutingRulesState::from_domain_rules(
+            rules,
+            self.custom_domain_rules.as_deref(),
+        ))
+    }
+
+    async fn download_and_parse(&mut self) -> Result<DomainRules> {
+        let body = load_gfwlist_body().await?;
+
+        let mut rules = parse_gfwlist(&body)?;
+        if let Some(custom_domains) = self.load_custom_domain_rules()? {
+            rules.extend(custom_domains);
+        }
+
+        Ok(rules)
+    }
+
+    fn load_custom_domain_rules(&mut self) -> Result<Option<HashSet<String>>> {
+        let Some(path) = self.custom_domain_rules.as_deref() else {
+            return Ok(None);
+        };
+        let modified = file_modified_time(path).with_context(|| {
+            format!(
+                "failed to read custom domain rules timestamp {}",
+                path.display()
+            )
+        })?;
+
+        if let Some(cache) = &self.custom_cache
+            && system_times_match_to_second(cache.modified, modified)
+        {
+            info!(
+                path = %path.display(),
+                custom_domain_count = cache.domains.len(),
+                "using cached custom proxy routing rules"
+            );
+            return Ok(Some(cache.domains.clone()));
+        }
+
+        let domains = read_custom_domain_rules(path)?;
+        let custom_count = domains.len();
+        self.custom_cache = Some(CustomDomainRulesCache {
+            modified,
+            domains: domains.clone(),
+        });
+        info!(
+            path = %path.display(),
+            custom_domain_count = custom_count,
+            "loaded custom proxy routing rules"
+        );
+        Ok(Some(domains))
+    }
+
+    fn custom_domain_rules_display(&self) -> Option<String> {
+        self.custom_domain_rules
+            .as_ref()
+            .map(|path| path.display().to_string())
+    }
+}
+
+impl RoutingRulesState {
+    fn from_domain_rules(rules: DomainRules, custom_domain_rules: Option<&Path>) -> Self {
+        info!(
+            url = GFWLIST_URL,
+            custom_domain_rules = custom_domain_rules.map(|path| path.display().to_string()),
+            domain_count = rules.len(),
+            "loaded proxy routing rules"
+        );
+        Self::Domains {
+            rules,
+            custom_domain_rules: custom_domain_rules.map(Path::to_path_buf),
+        }
+    }
+
+    fn should_proxy_host(&self, host: &str) -> bool {
         match self {
             Self::Domains { rules, .. } => rules.matches(host),
-            Self::GlobalProxy | Self::AllProxyFallback => true,
+            Self::GlobalProxy => true,
+            Self::DirectFallback => false,
         }
     }
 
     fn mode(&self) -> &'static str {
         match self {
-            Self::Domains { .. } => "auto",
+            Self::Domains { .. } | Self::DirectFallback => "auto",
             Self::GlobalProxy => "global",
-            Self::AllProxyFallback => "all-proxy",
         }
     }
 
-    pub(crate) fn describe(&self) -> String {
+    fn describe(&self) -> String {
         match self {
             Self::Domains {
                 rules,
@@ -93,28 +245,10 @@ impl RoutingRules {
                 custom_domain_rules: None,
             } => format!("{} domains from {}", rules.len(), GFWLIST_URL),
             Self::GlobalProxy => "all domains via proxy; proxy mode is global".to_owned(),
-            Self::AllProxyFallback => {
-                format!("all domains via proxy; failed to load {GFWLIST_URL}")
+            Self::DirectFallback => {
+                format!("direct routing; failed to load {GFWLIST_URL}")
             }
         }
-    }
-
-    async fn download_and_parse(custom_domain_rules: Option<&Path>) -> Result<DomainRules> {
-        let body = load_gfwlist_body().await?;
-
-        let mut rules = parse_gfwlist(&body)?;
-        if let Some(path) = custom_domain_rules {
-            let custom_domains = read_custom_domain_rules(path)?;
-            let custom_count = custom_domains.len();
-            rules.extend(custom_domains);
-            info!(
-                path = %path.display(),
-                custom_domain_count = custom_count,
-                "merged custom proxy routing rules"
-            );
-        }
-
-        Ok(rules)
     }
 }
 
@@ -207,25 +341,23 @@ fn user_cache_dir() -> Result<PathBuf> {
 }
 
 fn is_cache_current(cache_path: &Path, remote_modified: SystemTime) -> Result<bool> {
-    let metadata = match fs::metadata(cache_path) {
-        Ok(metadata) => metadata,
+    let cache_modified = match file_modified_time(cache_path) {
+        Ok(modified) => modified,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(err) => {
             return Err(err)
                 .with_context(|| format!("failed to read gfwlist cache {}", cache_path.display()));
         }
     };
-    let cache_modified = metadata.modified().with_context(|| {
-        format!(
-            "failed to read gfwlist cache timestamp {}",
-            cache_path.display()
-        )
-    })?;
 
     Ok(system_times_match_to_second(
         cache_modified,
         remote_modified,
     ))
+}
+
+fn file_modified_time(path: &Path) -> std::io::Result<SystemTime> {
+    fs::metadata(path)?.modified()
 }
 
 fn write_gfwlist_cache(
@@ -468,6 +600,41 @@ bad:domain
     }
 
     #[test]
+    fn custom_domain_rules_cache_reuses_unchanged_file() {
+        let path = temp_custom_rules_path("custom-cache-reuses-unchanged");
+        let modified = SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000);
+        write_custom_rules_at(&path, ".first.example\n", modified);
+        let mut loader = AutoRuleLoader::new(Some(path.clone()));
+
+        let first = loader.load_custom_domain_rules().unwrap().unwrap();
+        write_custom_rules_at(&path, ".second.example\n", modified);
+        let second = loader.load_custom_domain_rules().unwrap().unwrap();
+        let _ = fs::remove_file(&path);
+
+        assert!(first.contains("first.example"));
+        assert!(second.contains("first.example"));
+        assert!(!second.contains("second.example"));
+    }
+
+    #[test]
+    fn custom_domain_rules_cache_reloads_changed_file() {
+        let path = temp_custom_rules_path("custom-cache-reloads-changed");
+        let first_modified = SystemTime::UNIX_EPOCH + Duration::from_secs(1_700_000_000);
+        let second_modified = first_modified + Duration::from_secs(2);
+        write_custom_rules_at(&path, ".first.example\n", first_modified);
+        let mut loader = AutoRuleLoader::new(Some(path.clone()));
+
+        let first = loader.load_custom_domain_rules().unwrap().unwrap();
+        write_custom_rules_at(&path, ".second.example\n", second_modified);
+        let second = loader.load_custom_domain_rules().unwrap().unwrap();
+        let _ = fs::remove_file(&path);
+
+        assert!(first.contains("first.example"));
+        assert!(!second.contains("first.example"));
+        assert!(second.contains("second.example"));
+    }
+
+    #[test]
     fn parses_last_modified_header() {
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -509,7 +676,7 @@ bad:domain
 
     #[test]
     fn global_proxy_matches_every_host() {
-        let rules = RoutingRules::GlobalProxy;
+        let rules = RoutingRules::new(RoutingRulesState::GlobalProxy);
 
         assert!(rules.should_proxy_host("example.com"));
         assert_eq!(rules.to_string(), "global");
@@ -524,9 +691,39 @@ bad:domain
         let rules = RoutingRules::load(
             ProxyMode::Global,
             Some(Path::new("/definitely/missing/custom-domains.txt")),
+            Duration::from_secs(60),
         )
         .await;
 
-        assert!(matches!(rules, RoutingRules::GlobalProxy));
+        assert!(rules.should_proxy_host("example.com"));
+        assert_eq!(rules.to_string(), "global");
+    }
+
+    #[test]
+    fn auto_fallback_routes_direct_by_default() {
+        let rules = RoutingRules::new(RoutingRulesState::DirectFallback);
+
+        assert!(!rules.should_proxy_host("example.com"));
+        assert_eq!(rules.to_string(), "auto");
+        assert_eq!(
+            rules.describe(),
+            format!("direct routing; failed to load {GFWLIST_URL}")
+        );
+    }
+
+    fn temp_custom_rules_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "ws2tcp-local-test-{}-{name}.txt",
+            std::process::id()
+        ))
+    }
+
+    fn write_custom_rules_at(path: &Path, text: &str, modified: SystemTime) {
+        fs::write(path, text).unwrap();
+        fs::File::options()
+            .write(true)
+            .open(path)
+            .and_then(|file| file.set_times(FileTimes::new().set_modified(modified)))
+            .unwrap();
     }
 }

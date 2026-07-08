@@ -2,12 +2,15 @@ use std::{
     fs,
     net::SocketAddr,
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 use anyhow::{Context, Result, anyhow, bail};
 use serde::Deserialize;
 
-use crate::cli::{Args, DEFAULT_BUFFER_SIZE, DEFAULT_LISTEN, ProxyMode};
+use crate::cli::{
+    Args, DEFAULT_BUFFER_SIZE, DEFAULT_LISTEN, DEFAULT_RULE_REFRESH_INTERVAL_SECS, ProxyMode,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct Settings {
@@ -17,6 +20,7 @@ pub(crate) struct Settings {
     pub(crate) buffer_size: usize,
     pub(crate) log_level: Option<String>,
     pub(crate) custom_domain_rules: Option<PathBuf>,
+    pub(crate) rule_refresh_interval: Duration,
     pub(crate) proxy_mode: ProxyMode,
     pub(crate) verify_server_certificate: bool,
 }
@@ -29,6 +33,7 @@ struct FileSettings {
     buffer_size: Option<usize>,
     log_level: Option<String>,
     custom_domain_rules: Option<PathBuf>,
+    rule_refresh_interval_secs: Option<u64>,
     proxy_mode: Option<ProxyMode>,
     verify_server_certificate: Option<bool>,
 }
@@ -59,6 +64,13 @@ impl Settings {
         if buffer_size == 0 {
             bail!("--buffer-size must be greater than 0");
         }
+        let rule_refresh_interval_secs = args
+            .rule_refresh_interval_secs
+            .or(file_settings.rule_refresh_interval_secs)
+            .unwrap_or(DEFAULT_RULE_REFRESH_INTERVAL_SECS);
+        if rule_refresh_interval_secs == 0 {
+            bail!("--rule-refresh-interval-secs must be greater than 0");
+        }
 
         Ok(Self {
             listen,
@@ -71,6 +83,7 @@ impl Settings {
                     .custom_domain_rules
                     .map(|path| resolve_config_relative_path(path, config_dir.as_deref()))
             }),
+            rule_refresh_interval: Duration::from_secs(rule_refresh_interval_secs),
             proxy_mode: args
                 .proxy_mode
                 .or(file_settings.proxy_mode)
@@ -115,6 +128,7 @@ mod tests {
             buffer_size: None,
             log_level: None,
             custom_domain_rules: None,
+            rule_refresh_interval_secs: None,
             proxy_mode: None,
             verify_server_certificate: false,
         }
@@ -135,6 +149,7 @@ mod tests {
             buffer_size: Some(4096),
             log_level: Some("debug".to_owned()),
             custom_domain_rules: Some("cli-domains.txt".into()),
+            rule_refresh_interval_secs: Some(30),
             proxy_mode: Some(ProxyMode::Global),
             verify_server_certificate: true,
         })
@@ -149,6 +164,7 @@ mod tests {
             settings.custom_domain_rules.as_deref(),
             Some(Path::new("cli-domains.txt"))
         );
+        assert_eq!(settings.rule_refresh_interval, Duration::from_secs(30));
         assert_eq!(settings.proxy_mode, ProxyMode::Global);
         assert!(settings.verify_server_certificate);
     }
@@ -169,6 +185,7 @@ basic_auth = "file:secret"
 buffer_size = 1024
 log_level = "info"
 custom_domain_rules = "file-domains.txt"
+rule_refresh_interval_secs = 45
 proxy_mode = "auto"
 verify_server_certificate = true
 "#,
@@ -183,6 +200,7 @@ verify_server_certificate = true
             buffer_size: Some(2048),
             log_level: Some("debug".to_owned()),
             custom_domain_rules: Some("cli-domains.txt".into()),
+            rule_refresh_interval_secs: Some(30),
             proxy_mode: Some(ProxyMode::Global),
             verify_server_certificate: false,
         })
@@ -198,6 +216,7 @@ verify_server_certificate = true
             settings.custom_domain_rules.as_deref(),
             Some(Path::new("cli-domains.txt"))
         );
+        assert_eq!(settings.rule_refresh_interval, Duration::from_secs(30));
         assert_eq!(settings.proxy_mode, ProxyMode::Global);
         assert!(settings.verify_server_certificate);
     }
@@ -217,6 +236,7 @@ gateway = "wss://file.example/ws"
 buffer_size = 8192
 log_level = "info"
 custom_domain_rules = "custom-domains.txt"
+rule_refresh_interval_secs = 45
 proxy_mode = "global"
 verify_server_certificate = true
 "#,
@@ -235,6 +255,7 @@ verify_server_certificate = true
             settings.custom_domain_rules.as_deref(),
             Some(config_path.with_file_name("custom-domains.txt").as_path())
         );
+        assert_eq!(settings.rule_refresh_interval, Duration::from_secs(45));
         assert_eq!(settings.proxy_mode, ProxyMode::Global);
         assert!(settings.verify_server_certificate);
     }
@@ -249,6 +270,7 @@ verify_server_certificate = true
             buffer_size: None,
             log_level: None,
             custom_domain_rules: None,
+            rule_refresh_interval_secs: None,
             proxy_mode: None,
             verify_server_certificate: false,
         })
@@ -267,11 +289,53 @@ verify_server_certificate = true
             buffer_size: None,
             log_level: None,
             custom_domain_rules: None,
+            rule_refresh_interval_secs: None,
             proxy_mode: None,
             verify_server_certificate: false,
         })
         .unwrap();
 
         assert_eq!(settings.proxy_mode, ProxyMode::Global);
+    }
+
+    #[test]
+    fn uses_default_rule_refresh_interval() {
+        let settings = Settings::resolve(Args {
+            config: None,
+            listen: None,
+            gateway: Some("wss://example.com/ws".to_owned()),
+            basic_auth: None,
+            buffer_size: None,
+            log_level: None,
+            custom_domain_rules: None,
+            rule_refresh_interval_secs: None,
+            proxy_mode: None,
+            verify_server_certificate: false,
+        })
+        .unwrap();
+
+        assert_eq!(
+            settings.rule_refresh_interval,
+            Duration::from_secs(DEFAULT_RULE_REFRESH_INTERVAL_SECS)
+        );
+    }
+
+    #[test]
+    fn rejects_zero_rule_refresh_interval() {
+        assert!(
+            Settings::resolve(Args {
+                config: None,
+                listen: None,
+                gateway: Some("wss://example.com/ws".to_owned()),
+                basic_auth: None,
+                buffer_size: None,
+                log_level: None,
+                custom_domain_rules: None,
+                rule_refresh_interval_secs: Some(0),
+                proxy_mode: None,
+                verify_server_certificate: false,
+            })
+            .is_err()
+        );
     }
 }
