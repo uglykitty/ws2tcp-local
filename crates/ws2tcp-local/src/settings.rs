@@ -13,16 +13,16 @@ use crate::cli::{
 };
 
 #[derive(Debug, Clone)]
-pub(crate) struct Settings {
-    pub(crate) listen: SocketAddr,
-    pub(crate) gateway: String,
-    pub(crate) basic_auth: Option<String>,
-    pub(crate) buffer_size: usize,
-    pub(crate) log_level: Option<String>,
-    pub(crate) custom_domain_rules: Option<PathBuf>,
-    pub(crate) rule_refresh_interval: Duration,
-    pub(crate) proxy_mode: ProxyMode,
-    pub(crate) verify_server_certificate: bool,
+pub struct Settings {
+    pub listen: SocketAddr,
+    pub gateway: String,
+    pub basic_auth: Option<String>,
+    pub buffer_size: usize,
+    pub log_level: Option<String>,
+    pub custom_domain_rules: Option<PathBuf>,
+    pub rule_refresh_interval: Duration,
+    pub proxy_mode: ProxyMode,
+    pub verify_server_certificate: bool,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -39,7 +39,7 @@ struct FileSettings {
 }
 
 impl Settings {
-    pub(crate) fn resolve(args: Args) -> Result<Self> {
+    pub fn resolve(args: Args) -> Result<Self> {
         let (file_settings, config_dir) = match &args.config {
             Some(path) => (
                 read_file_settings(path)?,
