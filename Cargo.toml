@@ -1,6 +1,6 @@
 [package]
 name = "ws2tcp-local"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 description = "Local HTTP proxy client for ws2tcp-router."
 license = "MIT"
