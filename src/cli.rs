@@ -1,11 +1,7 @@
 use std::{net::SocketAddr, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
-use serde::Deserialize;
-
-pub const DEFAULT_BUFFER_SIZE: usize = 16 * 1024;
-pub const DEFAULT_LISTEN: &str = "127.0.0.1:8000";
-pub const DEFAULT_RULE_REFRESH_INTERVAL_SECS: u64 = 60;
+use ws2tcp_local_core::{ProxyMode, SettingsOverrides};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -49,16 +45,41 @@ pub struct Args {
 
     /// Proxy mode: auto uses gfwlist rules, global proxies every request.
     #[arg(long)]
-    pub proxy_mode: Option<ProxyMode>,
+    pub proxy_mode: Option<CliProxyMode>,
 
     /// Verify the remote WebSocket gateway TLS server certificate.
     #[arg(long)]
     pub verify_server_certificate: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, ValueEnum)]
-#[serde(rename_all = "kebab-case")]
-pub enum ProxyMode {
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum CliProxyMode {
     Auto,
     Global,
+}
+
+impl From<CliProxyMode> for ProxyMode {
+    fn from(mode: CliProxyMode) -> Self {
+        match mode {
+            CliProxyMode::Auto => Self::Auto,
+            CliProxyMode::Global => Self::Global,
+        }
+    }
+}
+
+impl From<Args> for SettingsOverrides {
+    fn from(args: Args) -> Self {
+        Self {
+            config: args.config,
+            listen: args.listen,
+            gateway: args.gateway,
+            basic_auth: args.basic_auth,
+            buffer_size: args.buffer_size,
+            log_level: args.log_level,
+            custom_domain_rules: args.custom_domain_rules,
+            rule_refresh_interval_secs: args.rule_refresh_interval_secs,
+            proxy_mode: args.proxy_mode.map(Into::into),
+            verify_server_certificate: args.verify_server_certificate,
+        }
+    }
 }

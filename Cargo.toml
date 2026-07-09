@@ -1,6 +1,6 @@
 [package]
 name = "ws2tcp-local"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2024"
 description = "Local HTTP proxy client for ws2tcp-router."
 license = "MIT"
@@ -8,31 +8,20 @@ repository = "https://github.com/uglykitty/ws2tcp-local"
 readme = "README.md"
 keywords = ["proxy", "websocket", "tcp", "http"]
 categories = ["network-programming", "command-line-utilities"]
-
-[workspace]
-members = ["crates/ws2tcp-local-ffi"]
-default-members = ["."]
-resolver = "2"
-
-[lib]
-path = "crates/ws2tcp-local/src/lib.rs"
-
-[[bin]]
-name = "ws2tcp-local"
-path = "crates/ws2tcp-local/src/main.rs"
+include = [
+    "Cargo.toml",
+    "Cargo.lock",
+    "LICENSE",
+    "README.md",
+    "README.zh-CN.md",
+    "CHANGELOG.md",
+    "src/**",
+    "examples/**",
+]
 
 [dependencies]
 anyhow = "1.0"
-base64 = "0.22"
 clap = { version = "4.5", features = ["derive"] }
-futures-util = "0.3"
-httpdate = "1.0"
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
-rustls = { version = "0.23", features = ["ring"] }
-serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1.45", features = ["rt", "macros", "net", "io-util", "time", "signal"] }
-tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
-toml = "0.8"
+tokio = { version = "1.45", features = ["rt", "macros", "signal"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-url = "2.5"
+ws2tcp-local-core = { version = "0.1.0", path = "../ws2tcp-local-core" }

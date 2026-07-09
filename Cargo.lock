@@ -1731,11 +1731,21 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "ws2tcp-local"
-version = "0.1.5"
+version = "0.1.6"
+dependencies = [
+ "anyhow",
+ "clap",
+ "tokio",
+ "tracing",
+ "ws2tcp-local-core",
+]
+
+[[package]]
+name = "ws2tcp-local-core"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64",
- "clap",
  "futures-util",
  "httpdate",
  "reqwest",
@@ -1747,19 +1757,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
-]
-
-[[package]]
-name = "ws2tcp-local-ffi"
-version = "0.1.5"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "ws2tcp-local",
 ]
 
 [[package]]

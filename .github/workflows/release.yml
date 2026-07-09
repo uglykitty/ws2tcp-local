@@ -56,14 +56,23 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ env.RELEASE_TAG }}
+          path: ws2tcp-local
+
+      - name: Checkout core repository
+        uses: actions/checkout@v4
+        with:
+          repository: uglykitty/ws2tcp-local-core
+          path: ws2tcp-local-core
 
       - name: Install Rust toolchain
         run: rustup toolchain install stable --profile minimal --target ${{ matrix.target }}
 
       - name: Build binary
+        working-directory: ws2tcp-local
         run: cargo +stable build --locked --release --target ${{ matrix.target }}
 
       - name: Prepare binary
+        working-directory: ws2tcp-local
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist
@@ -73,7 +82,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: dist/${{ matrix.asset_name }}${{ matrix.bin_ext }}
+          path: ws2tcp-local/dist/${{ matrix.asset_name }}${{ matrix.bin_ext }}
           if-no-files-found: error
 
   release:

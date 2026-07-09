@@ -20,6 +20,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          path: ws2tcp-local
+
+      - name: Checkout core repository
+        uses: actions/checkout@v4
+        with:
+          repository: uglykitty/ws2tcp-local-core
+          path: ws2tcp-local-core
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -49,6 +57,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ws2tcp-local/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

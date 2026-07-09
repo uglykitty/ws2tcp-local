@@ -1,9 +1,10 @@
 FROM rust:1-slim-bookworm AS builder
 
-WORKDIR /app
+WORKDIR /app/ws2tcp-local
 
-COPY Cargo.toml Cargo.lock ./
-COPY crates ./crates
+COPY ws2tcp-local-core /app/ws2tcp-local-core
+COPY ws2tcp-local/Cargo.toml ws2tcp-local/Cargo.lock ./
+COPY ws2tcp-local/src ./src
 
 RUN cargo build --release --locked
 
