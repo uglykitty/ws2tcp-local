@@ -1,6 +1,6 @@
 [package]
 name = "ws2tcp-local"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 description = "Local HTTP proxy client for ws2tcp-router."
 license = "MIT"
@@ -24,4 +24,4 @@ anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 tokio = { version = "1.45", features = ["rt", "macros", "signal"] }
 tracing = "0.1"
-ws2tcp-local-core = { version = "0.1.0", path = "../ws2tcp-local-core" }
+ws2tcp-local-core = { version = "0.1.1", path = "../ws2tcp-local-core" }
