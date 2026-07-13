@@ -1,19 +1,18 @@
-FROM rust:1-alpine AS builder
+FROM rust:1-slim-bookworm AS builder
 
-ARG WS2TCP_LOCAL_VERSION=0.1.7
+WORKDIR /app/ws2tcp-local
 
-RUN cargo install \
-        --locked \
-        --version "${WS2TCP_LOCAL_VERSION}" \
-        ws2tcp-local
+COPY ws2tcp-local-core /app/ws2tcp-local-core
+COPY ws2tcp-local/Cargo.toml ws2tcp-local/Cargo.lock ./
+COPY ws2tcp-local/src ./src
 
-FROM alpine:latest
+RUN cargo build --release --locked
+
+FROM debian:bookworm-slim
 
 LABEL org.opencontainers.image.source="https://github.com/uglykitty/ws2tcp-local"
 
-RUN apk add --no-cache ca-certificates
-
-COPY --from=builder /usr/local/cargo/bin/ws2tcp-local /usr/local/bin/ws2tcp-local
+COPY --from=builder /app/ws2tcp-local/target/release/ws2tcp-local /usr/local/bin/ws2tcp-local
 
 USER 10001:10001
 EXPOSE 8000

@@ -1,3 +1,9 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-podman build -t ws2tcp-local .
+repo_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+podman build \
+  -t ws2tcp-local \
+  -f "$repo_dir/Dockerfile" \
+  "$repo_dir/.."

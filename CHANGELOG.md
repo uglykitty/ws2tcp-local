@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.8 - 2026-07-13
+
+### Changed
+
+- Build the container image from the checked-out `ws2tcp-local` and `ws2tcp-local-core` sources with locked dependencies.
+- Track `Cargo.lock` for reproducible application and container builds.
+- Align the local Podman build context with the GitHub Actions checkout layout.
+
+### Fixed
+
+- Corrected the builder artifact path used by the final container image stage.
+- Fixed the local container build script's shebang and made it independent of the caller's working directory.
+
 ## 0.1.5 - 2026-07-08
 
 ### Changed
