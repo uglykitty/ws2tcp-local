@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.9 - 2026-07-14
+
+### Changed
+
+- Changed the default local proxy listen address from `127.0.0.1:8000` to
+  `127.0.0.1:3128`.
+- Changed the default proxy mode from `global` to `auto`.
+- Added Podman usage instructions using the published container image.
+- Updated the container image to expose port 3128 and load a mounted TOML
+  configuration from `/etc/ws2tcp-local/ws2tcp-local.toml` by default.
+
+### Security
+
+- Added non-blocking warnings when Basic Auth credentials are supplied through
+  command-line arguments or the process environment, without logging the
+  credentials themselves.
+
 ## 0.1.8 - 2026-07-13
 
 ### Changed

@@ -46,15 +46,15 @@ cargo build --release
 ## 运行
 
 ```bash
-cargo run -- --listen 127.0.0.1:8000 --gateway ws://1.2.3.4:8000
+cargo run -- --listen 127.0.0.1:3128 --gateway ws://1.2.3.4:8000
 ```
 
-然后将浏览器或系统代理设置为 HTTP 代理 `127.0.0.1:8000`。
+然后将浏览器或系统代理设置为 HTTP 代理 `127.0.0.1:3128`。
 
 如果远端 router 需要 HTTP Basic 认证：
 
 ```bash
-cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com --basic-auth user:pass
+cargo run -- --listen 127.0.0.1:3128 --gateway wss://example.com --basic-auth user:pass
 ```
 
 也可以使用环境变量：
@@ -66,7 +66,7 @@ WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://example.com
 `wss://` gateway 也受支持：
 
 ```bash
-cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com
+cargo run -- --listen 127.0.0.1:3128 --gateway wss://example.com
 ```
 
 直连 `ws2tcp-router` 时，gateway URL 不应包含路径前缀：
@@ -83,11 +83,11 @@ cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com
 支持 TOML 配置文件：
 
 ```toml
-listen = "127.0.0.1:8000"
+listen = "127.0.0.1:3128"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
-proxy_mode = "global"
+proxy_mode = "auto"
 verify_server_certificate = false
 custom_domain_rules = "custom-domains.txt"
 rule_refresh_interval_secs = 60
@@ -125,8 +125,8 @@ cargo run -- --config ws2tcp-local.toml --listen 127.0.0.1:9000
 cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.txt
 ```
 
-代理模式也可以通过命令行指定。`global` 是默认值，会将所有请求通过 gateway，
-并跳过 gfwlist 下载。使用 `auto` 可以加载规则，并让未命中域名直连：
+代理模式也可以通过命令行指定。`auto` 是默认值，会加载规则，并让未命中域名
+直连。使用 `global` 会将所有请求通过 gateway，并跳过 gfwlist 下载：
 
 ```bash
 cargo run -- --gateway wss://example.com --proxy-mode global
@@ -150,7 +150,7 @@ verify_server_certificate = true
 
 ```text
 --config <PATH>        TOML 配置文件路径。命令行参数会覆盖配置文件值
---listen <ADDR>        本地代理监听地址。默认值：127.0.0.1:8000
+--listen <ADDR>        本地代理监听地址。默认值：127.0.0.1:3128
 --gateway <URL>        ws:// 或 wss:// ws2tcp-router 基础 URL。
                        除非由 --config 提供，否则必填
 --basic-auth <USER:PASS>
@@ -162,7 +162,7 @@ verify_server_certificate = true
                        自定义域名规则文件，每行一个 Squid dstdomain 条目
 --rule-refresh-interval-secs <SECONDS>
                        规则列表刷新间隔，单位为秒。默认值：60
---proxy-mode <MODE>    代理模式：auto 或 global。默认值：global
+--proxy-mode <MODE>    代理模式：auto 或 global。默认值：auto
 --verify-server-certificate
                        校验远端 WebSocket gateway 的 TLS 服务器证书。
                        默认：不校验

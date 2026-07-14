@@ -74,15 +74,15 @@ cargo build --release
 ## Run
 
 ```bash
-cargo run -- --listen 127.0.0.1:8000 --gateway ws://1.2.3.4:8000
+cargo run -- --listen 127.0.0.1:3128 --gateway ws://1.2.3.4:8000
 ```
 
-Then configure Chrome or Firefox to use `127.0.0.1:8000` as an HTTP proxy.
+Then configure Chrome or Firefox to use `127.0.0.1:3128` as an HTTP proxy.
 
 If the remote router requires HTTP Basic authentication:
 
 ```bash
-cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com --basic-auth user:pass
+cargo run -- --listen 127.0.0.1:3128 --gateway wss://example.com --basic-auth user:pass
 ```
 
 Or use an environment variable:
@@ -94,7 +94,7 @@ WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://example.com
 `wss://` gateways are supported:
 
 ```bash
-cargo run -- --listen 127.0.0.1:8000 --gateway wss://example.com
+cargo run -- --listen 127.0.0.1:3128 --gateway wss://example.com
 ```
 
 When connecting directly to `ws2tcp-router`, the gateway URL should not include a
@@ -110,11 +110,11 @@ upgrade request. In that deployment, `ws2tcp-local` connects to
 Configuration files are also supported:
 
 ```toml
-listen = "127.0.0.1:8000"
+listen = "127.0.0.1:3128"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
-proxy_mode = "global"
+proxy_mode = "auto"
 verify_server_certificate = false
 custom_domain_rules = "custom-domains.txt"
 rule_refresh_interval_secs = 60
@@ -132,6 +132,46 @@ cargo run -- --config ws2tcp-local.toml --listen 127.0.0.1:9000
 
 An example config file is available at
 [`examples/ws2tcp-local.toml`](examples/ws2tcp-local.toml).
+
+## Podman
+
+Build the image from the parent directory, which must contain both the
+`ws2tcp-local` and `ws2tcp-local-core` repositories:
+
+```bash
+podman build -t ws2tcp-local -f ws2tcp-local/Dockerfile .
+```
+
+Create a configuration file for the container. The listener must bind to all
+interfaces so it can be reached through the published port:
+
+```toml
+listen = "0.0.0.0:3128"
+gateway = "wss://example.com"
+proxy_mode = "auto"
+```
+
+The published image is available from GitHub Container Registry. Run it with
+Podman and mount the configuration file at the image's default configuration
+path. The `:ro` option keeps the configuration read-only inside the container:
+
+```bash
+podman run --name ws2tcp-local -t \
+  -p 3128:3128 \
+  -v ./ws2tcp-local.toml:/etc/ws2tcp-local/ws2tcp-local.toml:ro \
+  ghcr.io/uglykitty/ws2tcp-local:latest
+```
+
+Use `127.0.0.1:3128` as the HTTP proxy on the host. To mount the configuration
+at another path, override the image's default command. Remove the existing
+named container first with `podman rm ws2tcp-local`, or choose another name:
+
+```bash
+podman run --name ws2tcp-local -t \
+  -p 3128:3128 \
+  -v ./ws2tcp-local.toml:/config/local.toml:ro \
+  ghcr.io/uglykitty/ws2tcp-local:latest --config /config/local.toml
+```
 
 The custom domain rules file uses one Squid `dstdomain` entry per line. Blank
 lines and `#` comments are ignored:
@@ -153,9 +193,9 @@ You can also provide the same file directly on the command line:
 cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.txt
 ```
 
-Proxy mode can also be set from the command line. `global` is the default and
-routes every request through the gateway while skipping gfwlist download.
-Use `auto` to load rules and direct-connect unmatched domains:
+Proxy mode can also be set from the command line. `auto` is the default; it
+loads rules and directly connects unmatched domains. Use `global` to route
+every request through the gateway while skipping gfwlist download:
 
 ```bash
 cargo run -- --gateway wss://example.com --proxy-mode global
@@ -180,7 +220,7 @@ verify_server_certificate = true
 
 ```text
 --config <PATH>        TOML config file path. CLI arguments override config values
---listen <ADDR>        Local proxy listen address. Default: 127.0.0.1:8000
+--listen <ADDR>        Local proxy listen address. Default: 127.0.0.1:3128
 --gateway <URL>        Base ws:// or wss:// ws2tcp-router URL. Required unless
                        provided by --config
 --basic-auth <USER:PASS>
@@ -192,7 +232,7 @@ verify_server_certificate = true
                        Custom domain rules file, one Squid dstdomain entry per line
 --rule-refresh-interval-secs <SECONDS>
                        Rule list refresh interval in seconds. Default: 60
---proxy-mode <MODE>    Proxy mode: auto or global. Default: global
+--proxy-mode <MODE>    Proxy mode: auto or global. Default: auto
 --verify-server-certificate
                        Verify the remote WebSocket gateway TLS certificate.
                        Default: disabled

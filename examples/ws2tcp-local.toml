@@ -4,26 +4,25 @@
 # Do not commit real credentials here. Prefer --basic-auth or
 # WS2TCP_LOCAL_BASIC_AUTH for sensitive values.
 
-listen = "127.0.0.1:8000"
+listen = "127.0.0.1:3128"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
-proxy_mode = "global"
+proxy_mode = "auto"
 verify_server_certificate = false
 
 # Use a path prefix, for example wss://example.com/router, only when a reverse
 # proxy strips that prefix before forwarding to ws2tcp-router.
 #
-# By default, all domains are routed through this gateway and rule loading is
-# skipped. In auto mode, ws2tcp-local checks the built-in gfwlist URL at startup
-# and on the configured refresh interval, downloading only when the remote
+# By default, ws2tcp-local runs in auto mode and checks the built-in gfwlist URL
+# at startup and on the configured refresh interval, downloading only when the remote
 # Last-Modified timestamp differs from the cached file timestamp. Matched
 # domains use this gateway; unmatched domains and the initial rule-load failure
 # case connect directly.
 #
-# Optional. Defaults to "global". Use "auto" to route only matched domains
-# through the gateway.
-# proxy_mode = "global"
+# Optional. Defaults to "auto", which routes only matched domains through the
+# gateway. Use "global" to route every domain through the gateway.
+# proxy_mode = "auto"
 #
 # Optional. Rule list refresh interval in seconds. Defaults to 60.
 # rule_refresh_interval_secs = 60
