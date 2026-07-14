@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.10 - 2026-07-14
+
+### Changed
+
+- Updated `ws2tcp-local-core` to 0.1.2.
+- Added automatic fallback to an in-memory gfwlist cache when the platform disk
+  cache is not readable and writable.
+
 ## 0.1.9 - 2026-07-14
 
 ### Changed
