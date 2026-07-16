@@ -158,7 +158,7 @@ path. The `:ro` option keeps the configuration read-only inside the container:
 ```bash
 podman run --name ws2tcp-local -t \
   -p 3128:3128 \
-  -v ./ws2tcp-local.toml:/etc/ws2tcp-local/ws2tcp-local.toml:ro \
+  -v "${PWD}/ws2tcp-local.toml:/etc/ws2tcp-local/ws2tcp-local.toml:ro" \
   ghcr.io/uglykitty/ws2tcp-local:latest
 ```
 
@@ -169,7 +169,7 @@ named container first with `podman rm ws2tcp-local`, or choose another name:
 ```bash
 podman run --name ws2tcp-local -t \
   -p 3128:3128 \
-  -v ./ws2tcp-local.toml:/config/local.toml:ro \
+  -v "${PWD}/ws2tcp-local.toml:/config/local.toml:ro" \
   ghcr.io/uglykitty/ws2tcp-local:latest --config /config/local.toml
 ```
 
