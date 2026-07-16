@@ -2,10 +2,16 @@
 
 ## Unreleased
 
+## 0.1.11 - 2026-07-16
+
 ### Added
 
 - Added `--generate-config` to print a TOML configuration template to stdout
   and exit without starting the proxy.
+
+### Fixed
+
+- Updated the documented container volume mount paths for broader compatibility.
 
 ## 0.1.10 - 2026-07-14
 
