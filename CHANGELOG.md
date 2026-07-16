@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added `--generate-config` to print a TOML configuration template to stdout
+  and exit without starting the proxy.
+
 ## 0.1.10 - 2026-07-14
 
 ### Changed

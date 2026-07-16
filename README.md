@@ -132,6 +132,11 @@ cargo run -- --config ws2tcp-local.toml --listen 127.0.0.1:9000
 
 An example config file is available at
 [`examples/ws2tcp-local.toml`](examples/ws2tcp-local.toml).
+The same template can be printed to stdout without starting the proxy:
+
+```bash
+ws2tcp-local --generate-config > ws2tcp-local.toml
+```
 
 ## Podman
 
@@ -146,7 +151,7 @@ Create a configuration file for the container. The listener must bind to all
 interfaces so it can be reached through the published port:
 
 ```toml
-listen = "0.0.0.0:3128"
+listen = "[::]:3128"
 gateway = "wss://example.com"
 proxy_mode = "auto"
 ```
@@ -219,6 +224,7 @@ verify_server_certificate = true
 ## Options
 
 ```text
+--generate-config       Print a TOML configuration template to stdout and exit
 --config <PATH>        TOML config file path. CLI arguments override config values
 --listen <ADDR>        Local proxy listen address. Default: 127.0.0.1:3128
 --gateway <URL>        Base ws:// or wss:// ws2tcp-router URL. Required unless

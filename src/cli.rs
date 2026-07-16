@@ -3,6 +3,8 @@ use std::{net::SocketAddr, path::PathBuf};
 use clap::{Parser, ValueEnum};
 use ws2tcp_local_core::{ProxyMode, SettingsOverrides};
 
+pub const CONFIG_TEMPLATE: &str = include_str!("../examples/ws2tcp-local.toml");
+
 #[derive(Debug, Parser)]
 #[command(
     name = "ws2tcp-local",
@@ -10,6 +12,10 @@ use ws2tcp_local_core::{ProxyMode, SettingsOverrides};
     about = "Local HTTP proxy for ws2tcp-router"
 )]
 pub struct Args {
+    /// Print a TOML configuration template to stdout and exit.
+    #[arg(long)]
+    pub generate_config: bool,
+
     /// TOML config file path. CLI arguments override values loaded from this file.
     #[arg(long)]
     pub config: Option<PathBuf>,
@@ -81,5 +87,23 @@ impl From<Args> for SettingsOverrides {
             proxy_mode: args.proxy_mode.map(Into::into),
             verify_server_certificate: args.verify_server_certificate,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_generate_config_without_gateway() {
+        let args = Args::try_parse_from(["ws2tcp-local", "--generate-config"]).unwrap();
+
+        assert!(args.generate_config);
+        assert!(args.gateway.is_none());
+    }
+
+    #[test]
+    fn config_template_contains_required_gateway() {
+        assert!(CONFIG_TEMPLATE.contains("gateway = \"wss://example.com\""));
     }
 }

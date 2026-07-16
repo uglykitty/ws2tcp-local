@@ -8,6 +8,11 @@ mod cli;
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let args = cli::Args::parse();
+    if args.generate_config {
+        print!("{}", cli::CONFIG_TEMPLATE);
+        return Ok(());
+    }
+
     let basic_auth_from_cli = args.basic_auth.is_some();
     let settings = Settings::resolve(args.into())?;
     let basic_auth_from_environment = !basic_auth_from_cli

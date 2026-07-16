@@ -106,6 +106,11 @@ cargo run -- --config ws2tcp-local.toml --listen 127.0.0.1:9000
 ```
 
 示例配置文件见 [`examples/ws2tcp-local.toml`](examples/ws2tcp-local.toml)。
+也可以将同一模板打印到 stdout，且不启动代理：
+
+```bash
+ws2tcp-local --generate-config > ws2tcp-local.toml
+```
 
 自定义域名规则文件每行一个 Squid `dstdomain` 条目，空行和 `#` 注释会被忽略：
 
@@ -149,6 +154,7 @@ verify_server_certificate = true
 ## 参数
 
 ```text
+--generate-config       将 TOML 配置模板打印到 stdout 后退出
 --config <PATH>        TOML 配置文件路径。命令行参数会覆盖配置文件值
 --listen <ADDR>        本地代理监听地址。默认值：127.0.0.1:3128
 --gateway <URL>        ws:// 或 wss:// ws2tcp-router 基础 URL。
