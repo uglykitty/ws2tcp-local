@@ -74,7 +74,7 @@ cargo build --release
 ## Run
 
 ```bash
-cargo run -- --listen 127.0.0.1:3128 --gateway ws://1.2.3.4:8000
+cargo run -- --listen 127.0.0.1:3128 --gateway wss://www.wangguofang.net/websocat
 ```
 
 Then configure Chrome or Firefox to use `127.0.0.1:3128` as an HTTP proxy.
@@ -82,36 +82,37 @@ Then configure Chrome or Firefox to use `127.0.0.1:3128` as an HTTP proxy.
 If the remote router requires HTTP Basic authentication:
 
 ```bash
-cargo run -- --listen 127.0.0.1:3128 --gateway wss://example.com --basic-auth user:pass
+cargo run -- --listen 127.0.0.1:3128 --gateway wss://www.wangguofang.net/websocat --basic-auth user:pass
 ```
 
 Or use an environment variable:
 
 ```bash
-WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://example.com
+WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://www.wangguofang.net/websocat
 ```
 
 `wss://` gateways are supported:
 
 ```bash
-cargo run -- --listen 127.0.0.1:3128 --gateway wss://example.com
+cargo run -- --listen 127.0.0.1:3128 --gateway wss://www.wangguofang.net/websocat
 ```
 
 When connecting directly to `ws2tcp-router`, the gateway URL should not include a
 path prefix: `ws2tcp-local` appends `/tcp:<host>:<port>`, and `ws2tcp-router`
 expects the final WebSocket request path to start with `/tcp:`.
 
-Use a gateway path such as `wss://example.com/router` only when a reverse proxy
+Use a gateway path such as `wss://www.wangguofang.net/websocat` only when a reverse proxy
 in front of `ws2tcp-router` strips that prefix before forwarding the WebSocket
 upgrade request. In that deployment, `ws2tcp-local` connects to
-`/router/tcp:<host>:<port>`, and the reverse proxy must forward it to
+`/websocat/tcp:<host>:<port>`, and the reverse proxy must forward it to
 `ws2tcp-router` as `/tcp:<host>:<port>`.
 
 Configuration files are also supported:
 
 ```toml
 listen = "127.0.0.1:3128"
-gateway = "wss://example.com"
+gateway = "wss://www.wangguofang.net/websocat"
+# basic_auth = "user:passwd"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
@@ -152,7 +153,8 @@ interfaces so it can be reached through the published port:
 
 ```toml
 listen = "[::]:3128"
-gateway = "wss://example.com"
+gateway = "wss://www.wangguofang.net/websocat"
+# basic_auth = "user:passwd"
 proxy_mode = "auto"
 ```
 
@@ -195,7 +197,7 @@ refresh when the file modification time changes.
 You can also provide the same file directly on the command line:
 
 ```bash
-cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.txt
+cargo run -- --gateway wss://www.wangguofang.net/websocat --custom-domain-rules custom-domains.txt
 ```
 
 Proxy mode can also be set from the command line. `auto` is the default; it
@@ -203,7 +205,7 @@ loads rules and directly connects unmatched domains. Use `global` to route
 every request through the gateway while skipping gfwlist download:
 
 ```bash
-cargo run -- --gateway wss://example.com --proxy-mode global
+cargo run -- --gateway wss://www.wangguofang.net/websocat --proxy-mode global
 ```
 
 For `wss://` gateways, TLS server certificate verification is disabled by
@@ -212,7 +214,7 @@ The program logs a warning when running this way. To require normal TLS server
 certificate validation, enable it explicitly:
 
 ```bash
-cargo run -- --gateway wss://example.com --verify-server-certificate
+cargo run -- --gateway wss://www.wangguofang.net/websocat --verify-server-certificate
 ```
 
 Or in the TOML configuration:
