@@ -5,6 +5,7 @@ WORKDIR /app/ws2tcp-local
 COPY ws2tcp-local-core /app/ws2tcp-local-core
 COPY ws2tcp-local/Cargo.toml ws2tcp-local/Cargo.lock ./
 COPY ws2tcp-local/src ./src
+COPY ws2tcp-local/examples ./examples
 
 RUN cargo build --release --locked
 

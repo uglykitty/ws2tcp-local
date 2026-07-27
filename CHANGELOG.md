@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.1.12 - 2026-07-27
+
+### Fixed
+
+- Include the embedded example configuration in Docker image builds.
+
 ## 0.1.11 - 2026-07-16
 
 ### Added
