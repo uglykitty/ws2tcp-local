@@ -6,6 +6,8 @@
 
 listen = "127.0.0.1:3128"
 gateway = "wss://example.com"
+# Optional. Prefer --basic-auth or WS2TCP_LOCAL_BASIC_AUTH for real credentials.
+# basic_auth = "user:pass"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
@@ -37,6 +39,3 @@ verify_server_certificate = false
 # this file is checked on the same refresh interval and reloaded only when its
 # modification time changes.
 # custom_domain_rules = "custom-domains.txt"
-
-# Optional. Prefer --basic-auth or WS2TCP_LOCAL_BASIC_AUTH for real credentials.
-# basic_auth = "user:pass"
