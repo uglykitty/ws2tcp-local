@@ -88,7 +88,7 @@ gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
-verify_server_certificate = false
+insecure = false
 custom_domain_rules = "custom-domains.txt"
 rule_refresh_interval_secs = 60
 ```
@@ -137,18 +137,17 @@ cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.tx
 cargo run -- --gateway wss://example.com --proxy-mode global
 ```
 
-对于 `wss://` gateway，默认不校验 TLS 服务器证书，因此自签名
-`ws2tcp-router` 证书无需额外配置即可使用。程序会在这种模式下输出警告。
-如果需要普通 TLS 服务器证书校验，可以显式开启：
+对于 `wss://` gateway，默认会校验 TLS 服务器证书。如果需要连接使用不受
+信任证书的 gateway（例如开发环境中的自签名证书），可以显式开启不安全模式：
 
 ```bash
-cargo run -- --gateway wss://example.com --verify-server-certificate
+cargo run -- --gateway wss://example.com --insecure
 ```
 
 或在 TOML 配置文件中设置：
 
 ```toml
-verify_server_certificate = true
+insecure = true
 ```
 
 ## 参数
@@ -169,9 +168,8 @@ verify_server_certificate = true
 --rule-refresh-interval-secs <SECONDS>
                        规则列表刷新间隔，单位为秒。默认值：60
 --proxy-mode <MODE>    代理模式：auto 或 global。默认值：auto
---verify-server-certificate
-                       校验远端 WebSocket gateway 的 TLS 服务器证书。
-                       默认：不校验
+--insecure             跳过远端 WebSocket gateway 的 TLS 服务器证书校验。
+                       默认：关闭
 ```
 
 ## 许可证

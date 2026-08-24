@@ -11,7 +11,7 @@ gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
-verify_server_certificate = false
+insecure = false
 
 # Use a path prefix, for example wss://example.com/router, only when a reverse
 # proxy strips that prefix before forwarding to ws2tcp-router.
@@ -29,10 +29,10 @@ verify_server_certificate = false
 # Optional. Rule list refresh interval in seconds. Defaults to 60.
 # rule_refresh_interval_secs = 60
 #
-# Optional. Defaults to false so self-signed ws2tcp-router certificates work
-# out of the box. Set to true to require normal TLS server certificate
-# validation for the remote WebSocket gateway.
-# verify_server_certificate = false
+# Optional. Defaults to false, which enables normal TLS server certificate
+# validation. Set to true only when connecting to a gateway with an untrusted
+# certificate, such as a self-signed certificate used during development.
+# insecure = false
 #
 # Optional. Merge one Squid dstdomain entry per line with the built-in gfwlist.
 # Relative paths are resolved from this config file's directory. In auto mode,

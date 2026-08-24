@@ -116,7 +116,7 @@ gateway = "wss://www.wangguofang.net/websocat"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
-verify_server_certificate = false
+insecure = false
 custom_domain_rules = "custom-domains.txt"
 rule_refresh_interval_secs = 60
 ```
@@ -208,19 +208,18 @@ every request through the gateway while skipping gfwlist download:
 cargo run -- --gateway wss://www.wangguofang.net/websocat --proxy-mode global
 ```
 
-For `wss://` gateways, TLS server certificate verification is disabled by
-default so self-signed `ws2tcp-router` certificates work without extra setup.
-The program logs a warning when running this way. To require normal TLS server
-certificate validation, enable it explicitly:
+For `wss://` gateways, TLS server certificates are verified by default. To
+connect to a gateway with an untrusted certificate, such as a self-signed
+certificate used during development, enable insecure mode explicitly:
 
 ```bash
-cargo run -- --gateway wss://www.wangguofang.net/websocat --verify-server-certificate
+cargo run -- --gateway wss://www.wangguofang.net/websocat --insecure
 ```
 
 Or in the TOML configuration:
 
 ```toml
-verify_server_certificate = true
+insecure = true
 ```
 
 ## Options
@@ -241,9 +240,8 @@ verify_server_certificate = true
 --rule-refresh-interval-secs <SECONDS>
                        Rule list refresh interval in seconds. Default: 60
 --proxy-mode <MODE>    Proxy mode: auto or global. Default: auto
---verify-server-certificate
-                       Verify the remote WebSocket gateway TLS certificate.
-                       Default: disabled
+--insecure             Skip verification of the remote WebSocket gateway TLS
+                       certificate. Default: disabled
 ```
 
 ## License

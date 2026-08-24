@@ -20,7 +20,7 @@ pub struct Args {
     #[arg(long)]
     pub config: Option<PathBuf>,
 
-    /// Address to bind the local HTTP proxy to.
+    /// Address to bind the local HTTP proxy to. Default: 127.0.0.1:3128.
     #[arg(long)]
     pub listen: Option<SocketAddr>,
 
@@ -33,7 +33,7 @@ pub struct Args {
     #[arg(long)]
     pub basic_auth: Option<String>,
 
-    /// TCP read buffer size.
+    /// TCP read buffer size. Default: 16384 bytes.
     #[arg(long)]
     pub buffer_size: Option<usize>,
 
@@ -45,17 +45,17 @@ pub struct Args {
     #[arg(long)]
     pub custom_domain_rules: Option<PathBuf>,
 
-    /// Rule list refresh interval in seconds.
+    /// Rule list refresh interval in seconds. Default: 60.
     #[arg(long)]
     pub rule_refresh_interval_secs: Option<u64>,
 
-    /// Proxy mode: auto uses gfwlist rules, global proxies every request.
+    /// Proxy mode: auto uses gfwlist rules, global proxies every request. Default: auto.
     #[arg(long)]
     pub proxy_mode: Option<CliProxyMode>,
 
-    /// Verify the remote WebSocket gateway TLS server certificate.
+    /// Skip verification of the remote WebSocket gateway TLS server certificate. Default: disabled.
     #[arg(long)]
-    pub verify_server_certificate: bool,
+    pub insecure: bool,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -85,7 +85,7 @@ impl From<Args> for SettingsOverrides {
             custom_domain_rules: args.custom_domain_rules,
             rule_refresh_interval_secs: args.rule_refresh_interval_secs,
             proxy_mode: args.proxy_mode.map(Into::into),
-            verify_server_certificate: args.verify_server_certificate,
+            insecure: args.insecure,
         }
     }
 }
@@ -105,5 +105,19 @@ mod tests {
     #[test]
     fn config_template_contains_required_gateway() {
         assert!(CONFIG_TEMPLATE.contains("gateway = \"wss://example.com\""));
+    }
+
+    #[test]
+    fn help_shows_parameter_defaults() {
+        let error = Args::try_parse_from(["ws2tcp-local", "--help"]).unwrap_err();
+        let help = error.to_string();
+
+        assert!(help.contains("Default: 127.0.0.1:3128"));
+        assert!(help.contains("Default: 16384 bytes"));
+        assert!(help.contains("Default: 60"));
+        assert!(help.contains("Default: auto"));
+        assert!(help.contains("Default: disabled"));
+        assert!(help.contains("--insecure"));
+        assert!(!help.contains("--verify-server-certificate"));
     }
 }

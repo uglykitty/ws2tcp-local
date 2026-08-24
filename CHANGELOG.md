@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.1.14 - 2026-08-24
+
+### Changed
+
+- Replaced `--verify-server-certificate` with the curl-style `--insecure`
+  option and enabled TLS server certificate verification by default.
+- Renamed the TOML setting to `insecure` and documented all command-line
+  defaults in `--help`.
+- Updated `ws2tcp-local-core` to 0.1.3.
+
 ## 0.1.12 - 2026-07-27
 
 ### Fixed
