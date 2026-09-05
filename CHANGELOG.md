@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.1.15 - 2026-09-05
+
+### Changed
+
+- Updated `ws2tcp-local-core` to 0.1.4. Gfwlist is now downloaded from the
+  primary mirror
+  `https://wangguofang.net/raw.githubusercontent.com/gfwlist/gfwlist/refs/heads/master/gfwlist.txt`
+  first, falling back to GitLab when the primary URL is unreachable.
+
 ## 0.1.14 - 2026-08-24
 
 ### Changed
