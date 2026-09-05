@@ -17,13 +17,15 @@ WebSocket router，且不会下载 gfwlist。它同时支持 HTTP `CONNECT` 隧�
 ```
 
 在 `auto` 代理模式下，`ws2tcp-local` 启动时会从下面内置 URL 检查并解析
-gfwlist，之后按可配置间隔刷新，默认 60 秒：
+gfwlist，之后按可配置间隔刷新，默认 60 秒。优先使用主 URL，主 URL 不可达时
+回退到 GitLab：
 
 ```text
+https://wangguofang.net/raw.githubusercontent.com/gfwlist/gfwlist/refs/heads/master/gfwlist.txt
 https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
 ```
 
-该 URL 硬编码在程序中。下载后的 `gfwlist.txt` 会缓存到当前平台的缓存目录：
+这些 URL 硬编码在程序中。下载后的 `gfwlist.txt` 会缓存到当前平台的缓存目录：
 
 - Linux 和其他类 Unix 系统：`$XDG_CACHE_HOME/ws2tcp-local/gfwlist.txt`；未设置
   `XDG_CACHE_HOME` 时使用 `~/.cache/ws2tcp-local/gfwlist.txt`。
