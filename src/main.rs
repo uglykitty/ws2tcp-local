@@ -1,9 +1,36 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use clap::Parser;
 use tracing::warn;
-use ws2tcp_local_core::{Settings, init_logging, run_proxy};
+use ws2tcp_local_core::{Settings, run_proxy};
 
 mod cli;
+
+fn init_logging(log_level: Option<&str>) -> Result<()> {
+    let filter = match log_level {
+        Some(filter) => filter.to_owned(),
+        None => std::env::var("RUST_LOG").unwrap_or_else(|_| "ws2tcp_local=info".to_owned()),
+    };
+
+    // When systemd captures our stdout/stderr into the journal (StandardOutput=journal,
+    // the default since systemd 246), it sets JOURNAL_STREAM and journalctl already
+    // prepends its own reception timestamp to every line. Emitting our own timestamp too
+    // would show up as a duplicate, so drop it in that case; interactive terminal runs
+    // keep the timestamp since JOURNAL_STREAM won't be set there.
+    let running_under_systemd_journal = std::env::var_os("JOURNAL_STREAM").is_some();
+
+    let init_result = if running_under_systemd_journal {
+        tracing_subscriber::fmt()
+            .with_env_filter(filter)
+            .without_time()
+            .try_init()
+    } else {
+        tracing_subscriber::fmt()
+            .with_env_filter(filter)
+            .try_init()
+    };
+
+    init_result.map_err(|err| anyhow!("failed to initialize logging: {err}"))
+}
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {

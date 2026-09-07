@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## 0.1.16 - 2026-09-07
+
+### Fixed
+
+- Stopped emitting a duplicate timestamp in `journalctl` output when running
+  under systemd: log lines no longer include our own timestamp when
+  `JOURNAL_STREAM` is set, since journald already records one per entry.
+  Interactive terminal runs are unaffected.
+
+### Changed
+
+- Moved logging setup (`init_logging`) from `ws2tcp-local-core` into this
+  CLI, since a shared library used by multiple frontends (CLI, FFI, GUI)
+  shouldn't install a process-global `tracing` subscriber on their behalf.
+  Updated `ws2tcp-local-core` to 0.1.5.
+
 ## 0.1.15 - 2026-09-05
 
 ### Changed

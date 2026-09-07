@@ -1803,18 +1803,19 @@ checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
 
 [[package]]
 name = "ws2tcp-local"
-version = "0.1.15"
+version = "0.1.16"
 dependencies = [
  "anyhow",
  "clap",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "ws2tcp-local-core",
 ]
 
 [[package]]
 name = "ws2tcp-local-core"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "base64",
@@ -1827,7 +1828,6 @@ dependencies = [
  "tokio-tungstenite",
  "toml",
  "tracing",
- "tracing-subscriber",
  "url",
 ]
 
