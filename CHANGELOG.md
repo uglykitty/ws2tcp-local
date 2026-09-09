@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.1.17 - 2026-09-09
+
+### Added
+
+- Added `--socks-listen` / `socks_listen` for an optional local SOCKS5
+  (`socks5h`) proxy, sharing the same gateway, routing rules, and proxy mode
+  as the existing HTTP proxy. Pass `--socks-listen` without a value to bind
+  the conventional `127.0.0.1:1080`, or give it an address to override.
+  Omitted entirely, no SOCKS5 listener is started. Requires
+  `ws2tcp-local-core` 0.1.6.
+
 ## 0.1.16 - 2026-09-07
 
 ### Fixed
