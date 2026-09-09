@@ -24,6 +24,12 @@ pub struct Args {
     #[arg(long)]
     pub listen: Option<SocketAddr>,
 
+    /// Also bind a local SOCKS5 (socks5h; hostnames are resolved by the remote
+    /// side, not locally) proxy. Pass without a value to use 127.0.0.1:1080.
+    /// Omitted entirely, no SOCKS5 listener is started.
+    #[arg(long, num_args = 0..=1, default_missing_value = "127.0.0.1:1080")]
+    pub socks_listen: Option<SocketAddr>,
+
     /// Base WebSocket gateway URL. Example: ws://1.2.3.4:8000
     #[arg(long)]
     pub gateway: Option<String>,
@@ -78,6 +84,7 @@ impl From<Args> for SettingsOverrides {
         Self {
             config: args.config,
             listen: args.listen,
+            socks_listen: args.socks_listen,
             gateway: args.gateway,
             basic_auth: args.basic_auth,
             buffer_size: args.buffer_size,

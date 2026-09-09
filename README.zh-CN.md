@@ -9,7 +9,8 @@
 域名规则为每个目标 TCP 地址选择路由：命中规则的域名会通过远端 WebSocket
 router，未命中的域名会本地直连。全局代理模式下，所有请求都会通过远端
 WebSocket router，且不会下载 gfwlist。它同时支持 HTTP `CONNECT` 隧道请求和
-普通 `http://` 代理请求。
+普通 `http://` 代理请求，也可以选择性地额外监听一个 SOCKS5（`socks5h`）
+端口：主机名会原样转发给网关或直连目标，不会在本地解析。
 
 ```text
 命中规则: browser -> ws2tcp-local -> ws://gateway/tcp:<host>:<port> -> ws2tcp-router -> <host>:<port>
@@ -53,6 +54,17 @@ cargo run -- --listen 127.0.0.1:3128 --gateway ws://1.2.3.4:8000
 
 然后将浏览器或系统代理设置为 HTTP 代理 `127.0.0.1:3128`。
 
+如果还想暴露一个 SOCKS5（`socks5h`）代理，传入 `--socks-listen`。不带值时
+默认监听 `127.0.0.1:1080`；带值则使用指定地址。完全不传该参数则不启动
+SOCKS5 监听：
+
+```bash
+cargo run -- --listen 127.0.0.1:3128 --socks-listen --gateway wss://example.com
+```
+
+SOCKS5 监听与 HTTP 监听共用同一个 gateway、路由规则和代理模式，且只支持
+无认证（no-authentication）的 SOCKS5 方式。
+
 如果远端 router 需要 HTTP Basic 认证：
 
 ```bash
@@ -86,6 +98,7 @@ cargo run -- --listen 127.0.0.1:3128 --gateway wss://example.com
 
 ```toml
 listen = "127.0.0.1:3128"
+# socks_listen = "127.0.0.1:1080"
 gateway = "wss://example.com"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
@@ -158,6 +171,9 @@ insecure = true
 --generate-config       将 TOML 配置模板打印到 stdout 后退出
 --config <PATH>        TOML 配置文件路径。命令行参数会覆盖配置文件值
 --listen <ADDR>        本地代理监听地址。默认值：127.0.0.1:3128
+--socks-listen [<ADDR>]
+                       额外监听一个本地 SOCKS5（socks5h）代理。不带值时使用
+                       127.0.0.1:1080；不传该参数则不启动 SOCKS5 监听
 --gateway <URL>        ws:// 或 wss:// ws2tcp-router 基础 URL。
                        除非由 --config 提供，否则必填
 --basic-auth <USER:PASS>

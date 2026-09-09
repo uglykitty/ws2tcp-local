@@ -5,6 +5,10 @@
 # WS2TCP_LOCAL_BASIC_AUTH for sensitive values.
 
 listen = "127.0.0.1:3128"
+# Optional. Also bind a local SOCKS5 (socks5h) proxy sharing the same gateway,
+# routing rules, and proxy mode. Only the no-authentication SOCKS5 method is
+# supported. Commonly 127.0.0.1:1080; unset to disable the SOCKS5 listener.
+# socks_listen = "127.0.0.1:1080"
 gateway = "wss://example.com"
 # Optional. Prefer --basic-auth or WS2TCP_LOCAL_BASIC_AUTH for real credentials.
 # basic_auth = "user:pass"

@@ -9,7 +9,9 @@ in auto proxy mode with a built-in gfwlist domain set. Matched domains go
 through the remote WebSocket router, and unmatched domains connect directly. In
 global proxy mode, every request goes through the remote WebSocket router and
 `ws2tcp-local` does not download gfwlist. It supports both HTTP `CONNECT`
-tunnels and ordinary `http://` proxy requests.
+tunnels and ordinary `http://` proxy requests, and can optionally bind a second
+listener speaking SOCKS5 (`socks5h`: hostnames are forwarded to the gateway or
+direct connection as-is, not resolved locally).
 
 ```text
 matched:   browser -> ws2tcp-local -> ws://gateway/tcp:<host>:<port> -> ws2tcp-router -> <host>:<port>
@@ -81,6 +83,17 @@ cargo run -- --listen 127.0.0.1:3128 --gateway wss://www.wangguofang.net/websoca
 
 Then configure Chrome or Firefox to use `127.0.0.1:3128` as an HTTP proxy.
 
+To also expose a SOCKS5 (`socks5h`) proxy, pass `--socks-listen`. Without a
+value it binds `127.0.0.1:1080`; give it a value to override the address.
+Omit the flag entirely to keep the SOCKS5 listener disabled:
+
+```bash
+cargo run -- --listen 127.0.0.1:3128 --socks-listen --gateway wss://www.wangguofang.net/websocat
+```
+
+The SOCKS5 listener shares the same gateway, routing rules, and proxy mode as
+the HTTP listener; only the no-authentication SOCKS5 method is supported.
+
 If the remote router requires HTTP Basic authentication:
 
 ```bash
@@ -113,6 +126,7 @@ Configuration files are also supported:
 
 ```toml
 listen = "127.0.0.1:3128"
+# socks_listen = "127.0.0.1:1080"
 gateway = "wss://www.wangguofang.net/websocat"
 # basic_auth = "user:passwd"
 buffer_size = 16384
@@ -230,6 +244,10 @@ insecure = true
 --generate-config       Print a TOML configuration template to stdout and exit
 --config <PATH>        TOML config file path. CLI arguments override config values
 --listen <ADDR>        Local proxy listen address. Default: 127.0.0.1:3128
+--socks-listen [<ADDR>]
+                       Also bind a local SOCKS5 (socks5h) proxy. Pass without a
+                       value to use 127.0.0.1:1080. Omitted, no SOCKS5 listener
+                       is started
 --gateway <URL>        Base ws:// or wss:// ws2tcp-router URL. Required unless
                        provided by --config
 --basic-auth <USER:PASS>
