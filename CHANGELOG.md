@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.1.18 - 2026-09-17
+
+### Added
+
+- The CLI now identifies itself as `cli/0.1.18` in the `User-Agent` sent
+  with gfwlist HTTP requests, via `ws2tcp-local-core`'s new
+  `Settings.client_label`. Requires `ws2tcp-local-core` 0.1.7.
+
 ## 0.1.17 - 2026-09-09
 
 ### Added

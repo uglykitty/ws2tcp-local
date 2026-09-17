@@ -41,7 +41,8 @@ async fn main() -> Result<()> {
     }
 
     let basic_auth_from_cli = args.basic_auth.is_some();
-    let settings = Settings::resolve(args.into())?;
+    let mut settings = Settings::resolve(args.into())?;
+    settings.client_label = Some(format!("cli/{}", env!("CARGO_PKG_VERSION")));
     let basic_auth_from_environment = !basic_auth_from_cli
         && settings.basic_auth.is_none()
         && std::env::var("WS2TCP_LOCAL_BASIC_AUTH").is_ok();
