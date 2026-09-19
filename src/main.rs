@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use clap::Parser;
-use tracing::warn;
-use ws2tcp_local_core::{Settings, run_proxy};
+use tracing::{error, warn};
+use ws2tcp_local_core::{GatewayCheckError, Settings, run_proxy};
 
 mod cli;
 
@@ -51,12 +51,23 @@ async fn main() -> Result<()> {
     init_logging(settings.log_level.as_deref())?;
     warn_if_basic_auth_may_leak(basic_auth_from_cli, basic_auth_from_environment);
 
-    run_proxy(settings, async {
+    let result = run_proxy(settings, async {
         if let Err(err) = tokio::signal::ctrl_c().await {
             tracing::warn!(error = %err, "failed to listen for Ctrl+C");
         }
     })
-    .await
+    .await;
+
+    // The gateway is checked before anything is served; tell the user what to fix and exit
+    // instead of starting a proxy that could not tunnel anything.
+    if let Err(err) = &result
+        && let Some(check_error) = err.downcast_ref::<GatewayCheckError>()
+    {
+        error!("{check_error}");
+        std::process::exit(1);
+    }
+
+    result
 }
 
 fn warn_if_basic_auth_may_leak(basic_auth_from_cli: bool, basic_auth_from_environment: bool) {

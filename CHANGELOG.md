@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.20 - 2026-09-19
+
+### Added
+
+- On startup the CLI now checks the gateway (a websocket handshake on the
+  gateway root, answered by `ws2tcp-router`'s health check) before listening.
+  If the gateway rejects the Basic Auth credentials (`401`), or none were
+  configured but the gateway needs them, it logs what to fix and exits with
+  status 1. Any other failure (unreachable, timeout, a router without the
+  health check) also exits with status 1. Requires `ws2tcp-local-core` 0.1.9
+  and a `ws2tcp-router` with the `/` health check (0.1.17 or later).
+- The token returned by that health check (`X-Ws2tcp-Token` response header)
+  is now sent as the same header on every proxied connection, together with
+  the Basic Auth credentials. `ws2tcp-router` does not verify it yet.
+
 ## 0.1.19 - 2026-09-19
 
 ### Changed

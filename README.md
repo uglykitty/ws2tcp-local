@@ -106,6 +106,12 @@ Or use an environment variable:
 WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://www.wangguofang.net/websocat
 ```
 
+On startup, `ws2tcp-local` first checks the gateway. If the Basic Auth
+credentials are wrong (or missing while the router requires them), it prints
+what to fix and exits with status 1 instead of starting the proxy; it also
+exits if the gateway cannot be reached or is a `ws2tcp-router` without the `/`
+health check.
+
 `wss://` gateways are supported:
 
 ```bash

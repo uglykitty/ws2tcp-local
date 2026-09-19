@@ -77,6 +77,10 @@ cargo run -- --listen 127.0.0.1:3128 --gateway wss://example.com --basic-auth us
 WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://example.com
 ```
 
+启动时 `ws2tcp-local` 会先检查 gateway。如果 Basic 认证信息错误（或 router 需要认证而没有提供），
+会提示需要修正的地方并以状态码 1 退出，不会启动代理；gateway 无法连接，或者是不支持 `/` 健康检查的旧版
+`ws2tcp-router` 时也会退出。
+
 `wss://` gateway 也受支持：
 
 ```bash
