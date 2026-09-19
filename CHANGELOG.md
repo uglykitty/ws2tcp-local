@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.1.19 - 2026-09-19
+
+### Changed
+
+- The CLI now sends `User-Agent: ws2tcp-local/<version>` on the gateway
+  websocket handshake (so `ws2tcp-router` can log it), via `ws2tcp-local-core`'s
+  new `Settings::add_header`, instead of `client_label` on gfwlist requests.
+  Requires `ws2tcp-local-core` 0.1.8.
 
 ## 0.1.18 - 2026-09-17
 

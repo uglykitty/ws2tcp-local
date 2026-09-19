@@ -24,9 +24,7 @@ fn init_logging(log_level: Option<&str>) -> Result<()> {
             .without_time()
             .try_init()
     } else {
-        tracing_subscriber::fmt()
-            .with_env_filter(filter)
-            .try_init()
+        tracing_subscriber::fmt().with_env_filter(filter).try_init()
     };
 
     init_result.map_err(|err| anyhow!("failed to initialize logging: {err}"))
@@ -42,7 +40,10 @@ async fn main() -> Result<()> {
 
     let basic_auth_from_cli = args.basic_auth.is_some();
     let mut settings = Settings::resolve(args.into())?;
-    settings.client_label = Some(format!("cli/{}", env!("CARGO_PKG_VERSION")));
+    settings.add_header(
+        "User-Agent",
+        &format!("ws2tcp-local/{}", env!("CARGO_PKG_VERSION")),
+    )?;
     let basic_auth_from_environment = !basic_auth_from_cli
         && settings.basic_auth.is_none()
         && std::env::var("WS2TCP_LOCAL_BASIC_AUTH").is_ok();
