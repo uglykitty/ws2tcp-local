@@ -77,9 +77,32 @@ cargo run -- --listen 127.0.0.1:3128 --gateway wss://example.com --basic-auth us
 WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://example.com
 ```
 
-启动时 `ws2tcp-local` 会先检查 gateway。如果 Basic 认证信息错误（或 router 需要认证而没有提供），
-会提示需要修正的地方并以状态码 1 退出，不会启动代理；gateway 无法连接，或者是不支持 `/` 健康检查的旧版
-`ws2tcp-router` 时也会退出。
+`ws2tcp-local` 同一时间只使用一种方式向 gateway 认证，用 `--auth-mode`（或配置文件中的 `auth_mode`）选择。默认是 `token`。
+在每个连接上发送 Basic 认证只是为了兼容没有 token 认证的 router 而保留，之后会被逐步去掉。
+
+- `token`（默认）：需要支持 token 认证的 `ws2tcp-router`（配置了认证信息时默认启用）。不发送健康检查：客户端用 `--basic-auth` 提供的认证信息登录一次
+  （`POST /auth/token`），这次登录就是检查。之后用会在后台自动续期的短期 access token 建立隧道，不再在每个连接上发送密码。
+  不会回退到 Basic 认证：登录失败（认证信息错误、gateway 无法连接或没有 token 端点）时，启动会带着原因失败。
+  与 `basic` 相比，代价是不再确认 gateway 是 `ws2tcp-router`、以及 WebSocket 升级能否通过，这些会在第一个隧道时才暴露。
+- `basic`（仅为兼容）：启动时用 Basic 认证对 gateway 做一次健康检查。如果认证信息错误，会提示需要修正的地方并以状态码 1 退出，
+  不会启动代理；gateway 无法连接，或者是不支持 `/` 健康检查的旧版 `ws2tcp-router` 时也会退出。之后每个代理连接都发送
+  Basic 认证信息，启动时还会输出一条提示，说明该模式即将被淘汰。
+
+没有认证信息（没有 `--basic-auth`，也没有 `WS2TCP_LOCAL_BASIC_AUTH`）表示未开启认证：两种模式下启动时都不会发送任何请求，
+代理直接启动，无认证地使用 gateway。
+
+```bash
+cargo run -- --gateway wss://example.com --basic-auth user:pass
+```
+
+没有 token 认证的 router（旧版 `ws2tcp-router`）需要使用兼容模式：
+
+```bash
+cargo run -- --gateway wss://example.com --basic-auth user:pass --auth-mode basic
+```
+
+如果前面有反向代理，`token` 模式还要求同一个路径前缀把纯 HTTP 的 `POST <gateway>/auth/token` 和
+`POST <gateway>/auth/refresh` 转发给 router。
 
 `wss://` gateway 也受支持：
 
@@ -183,6 +206,10 @@ insecure = true
 --basic-auth <USER:PASS>
                        远端 WebSocket 网关的 HTTP Basic 认证信息。
                        未提供时会回退到 WS2TCP_LOCAL_BASIC_AUTH
+--auth-mode <MODE>     向 gateway 认证的方式，同一时间只用一种：
+                       token（不做健康检查，登录一次获取 access token）
+                       或 basic（健康检查，然后每个连接发送 Basic 认证；仅为兼容，
+                       将被淘汰）。默认值：token
 --buffer-size <BYTES>  TCP 读取缓冲区大小。默认值：16384
 --log-level <FILTER>   日志过滤器，会覆盖 RUST_LOG。例如：ws2tcp_local=debug
 --custom-domain-rules <PATH>

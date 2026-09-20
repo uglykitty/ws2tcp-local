@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.2.0 - 2026-09-20
+
+### Added
+
+- `--auth-mode <token|basic>` (and `auth_mode` in the config file) chooses how the CLI
+  authenticates to the gateway, one method at a time. `token`, the default, needs a
+  `ws2tcp-router` with token authentication: no health check is sent, the CLI logs in once
+  with the `--basic-auth` credentials, opens tunnels with a short-lived access token that
+  it renews by itself in the background, and never falls back to Basic Auth (a failed
+  login fails startup). `basic` is what the CLI always did, a startup health check and
+  Basic Auth on every connection; it is kept for compatibility and logs a warning that it
+  will be phased out. Requires the matching `ws2tcp-local-core`.
+
+### Changed
+
+- **The default authentication is now `token`.** Against a `ws2tcp-router` that has no
+  token authentication (any version before token authentication was added), startup now
+  fails with `gateway token login failed`; pass `--auth-mode basic` (or set
+  `auth_mode = "basic"`) to keep the old behavior.
+- **Without credentials nothing is sent at startup any more.** No `--basic-auth` means
+  authentication is not enabled, so the health check is skipped and the proxy starts
+  right away. Before, the health check ran and reported an unreachable gateway or a
+  router that requires credentials; now those show at the first connection.
+- The `X-Ws2tcp-Token` header from the health check is no longer sent on proxied
+  connections (the router ignored it).
+
 ## 0.1.20 - 2026-09-19
 
 ### Added

@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, path::PathBuf};
 
 use clap::{Parser, ValueEnum};
-use ws2tcp_local_core::{ProxyMode, SettingsOverrides};
+use ws2tcp_local_core::{AuthMode, ProxyMode, SettingsOverrides};
 
 pub const CONFIG_TEMPLATE: &str = include_str!("../examples/ws2tcp-local.toml");
 
@@ -39,6 +39,13 @@ pub struct Args {
     #[arg(long)]
     pub basic_auth: Option<String>,
 
+    /// How to authenticate to the gateway, one method at a time. token: no health check, log in
+    /// once for a short-lived access token (needs a ws2tcp-router with token authentication).
+    /// basic: a health check on startup, then Basic Auth on every connection; kept for
+    /// compatibility and being phased out. Default: token.
+    #[arg(long)]
+    pub auth_mode: Option<CliAuthMode>,
+
     /// TCP read buffer size. Default: 16384 bytes.
     #[arg(long)]
     pub buffer_size: Option<usize>,
@@ -65,6 +72,21 @@ pub struct Args {
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum CliAuthMode {
+    Basic,
+    Token,
+}
+
+impl From<CliAuthMode> for AuthMode {
+    fn from(mode: CliAuthMode) -> Self {
+        match mode {
+            CliAuthMode::Basic => Self::Basic,
+            CliAuthMode::Token => Self::Token,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum CliProxyMode {
     Auto,
     Global,
@@ -87,6 +109,7 @@ impl From<Args> for SettingsOverrides {
             socks_listen: args.socks_listen,
             gateway: args.gateway,
             basic_auth: args.basic_auth,
+            auth_mode: args.auth_mode.map(Into::into),
             buffer_size: args.buffer_size,
             log_level: args.log_level,
             custom_domain_rules: args.custom_domain_rules,

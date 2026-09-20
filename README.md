@@ -78,7 +78,7 @@ cargo build --release
 ## Run
 
 ```bash
-cargo run -- --listen 127.0.0.1:3128 --gateway wss://www.wangguofang.net/websocat
+cargo run -- --listen 127.0.0.1:3128 --gateway wss://wangguofang.net/tunnel
 ```
 
 Then configure Chrome or Firefox to use `127.0.0.1:3128` as an HTTP proxy.
@@ -88,7 +88,7 @@ value it binds `127.0.0.1:1080`; give it a value to override the address.
 Omit the flag entirely to keep the SOCKS5 listener disabled:
 
 ```bash
-cargo run -- --listen 127.0.0.1:3128 --socks-listen --gateway wss://www.wangguofang.net/websocat
+cargo run -- --listen 127.0.0.1:3128 --socks-listen --gateway wss://wangguofang.net/tunnel
 ```
 
 The SOCKS5 listener shares the same gateway, routing rules, and proxy mode as
@@ -97,35 +97,67 @@ the HTTP listener; only the no-authentication SOCKS5 method is supported.
 If the remote router requires HTTP Basic authentication:
 
 ```bash
-cargo run -- --listen 127.0.0.1:3128 --gateway wss://www.wangguofang.net/websocat --basic-auth user:pass
+cargo run -- --listen 127.0.0.1:3128 --gateway wss://wangguofang.net/tunnel --basic-auth user:pass
 ```
 
 Or use an environment variable:
 
 ```bash
-WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://www.wangguofang.net/websocat
+WS2TCP_LOCAL_BASIC_AUTH=user:pass cargo run -- --gateway wss://wangguofang.net/tunnel
 ```
 
-On startup, `ws2tcp-local` first checks the gateway. If the Basic Auth
-credentials are wrong (or missing while the router requires them), it prints
-what to fix and exits with status 1 instead of starting the proxy; it also
-exits if the gateway cannot be reached or is a `ws2tcp-router` without the `/`
-health check.
+`ws2tcp-local` authenticates to the gateway with exactly one method at a time, chosen
+with `--auth-mode` (or `auth_mode` in the config file). The default is `token`. Basic Auth
+on every connection is kept only for compatibility with routers that have no token
+authentication, and will be phased out.
+
+- `token` (the default): needs a `ws2tcp-router` with token authentication, which it has by
+  default when it has credentials configured. No health check is sent: the client logs in
+  once with the credentials from `--basic-auth` (`POST /auth/token`), and that login is the
+  check. It then opens tunnels with a short-lived access token that it renews by itself in
+  the background, so the password is not sent on every connection. There is no fallback to
+  Basic Auth: if the login fails (wrong credentials, gateway unreachable, or no token
+  endpoints), startup fails with the reason. What is given up compared with `basic` is the
+  check that the gateway is a `ws2tcp-router` and that a WebSocket upgrade works through it,
+  which now shows at the first tunnel.
+- `basic` (compatibility only): on startup it checks the gateway with a health check and
+  Basic Auth. If the credentials are wrong it prints what to fix and exits with status 1
+  instead of starting the proxy; it also exits if the gateway cannot be reached or is a
+  `ws2tcp-router` without the `/` health check. Every proxied connection then sends the
+  Basic Auth credentials, and a warning at startup reminds that this mode is on its way out.
+
+Without credentials (no `--basic-auth` and no `WS2TCP_LOCAL_BASIC_AUTH`) authentication is
+not enabled: nothing is sent at startup in either mode, and the proxy starts right away and
+uses the gateway without authentication.
+
+```bash
+cargo run -- --gateway wss://wangguofang.net/tunnel --basic-auth user:pass
+```
+
+A router that has no token authentication (an older `ws2tcp-router`) needs the compatibility
+mode:
+
+```bash
+cargo run -- --gateway wss://wangguofang.net/tunnel --basic-auth user:pass --auth-mode basic
+```
+
+Behind a reverse proxy, `token` mode needs the same path prefix to also forward plain
+HTTP `POST <gateway>/auth/token` and `POST <gateway>/auth/refresh` to the router.
 
 `wss://` gateways are supported:
 
 ```bash
-cargo run -- --listen 127.0.0.1:3128 --gateway wss://www.wangguofang.net/websocat
+cargo run -- --listen 127.0.0.1:3128 --gateway wss://wangguofang.net/tunnel
 ```
 
 When connecting directly to `ws2tcp-router`, the gateway URL should not include a
 path prefix: `ws2tcp-local` appends `/tcp:<host>:<port>`, and `ws2tcp-router`
 expects the final WebSocket request path to start with `/tcp:`.
 
-Use a gateway path such as `wss://www.wangguofang.net/websocat` only when a reverse proxy
+Use a gateway path such as `wss://wangguofang.net/tunnel` only when a reverse proxy
 in front of `ws2tcp-router` strips that prefix before forwarding the WebSocket
 upgrade request. In that deployment, `ws2tcp-local` connects to
-`/websocat/tcp:<host>:<port>`, and the reverse proxy must forward it to
+`/tunnel/tcp:<host>:<port>`, and the reverse proxy must forward it to
 `ws2tcp-router` as `/tcp:<host>:<port>`.
 
 Configuration files are also supported:
@@ -133,7 +165,7 @@ Configuration files are also supported:
 ```toml
 listen = "127.0.0.1:3128"
 # socks_listen = "127.0.0.1:1080"
-gateway = "wss://www.wangguofang.net/websocat"
+gateway = "wss://wangguofang.net/tunnel"
 # basic_auth = "user:passwd"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
@@ -175,7 +207,7 @@ interfaces so it can be reached through the published port:
 
 ```toml
 listen = "[::]:3128"
-gateway = "wss://www.wangguofang.net/websocat"
+gateway = "wss://wangguofang.net/tunnel"
 # basic_auth = "user:passwd"
 proxy_mode = "auto"
 ```
@@ -219,7 +251,7 @@ refresh when the file modification time changes.
 You can also provide the same file directly on the command line:
 
 ```bash
-cargo run -- --gateway wss://www.wangguofang.net/websocat --custom-domain-rules custom-domains.txt
+cargo run -- --gateway wss://wangguofang.net/tunnel --custom-domain-rules custom-domains.txt
 ```
 
 Proxy mode can also be set from the command line. `auto` is the default; it
@@ -227,7 +259,7 @@ loads rules and directly connects unmatched domains. Use `global` to route
 every request through the gateway while skipping gfwlist download:
 
 ```bash
-cargo run -- --gateway wss://www.wangguofang.net/websocat --proxy-mode global
+cargo run -- --gateway wss://wangguofang.net/tunnel --proxy-mode global
 ```
 
 For `wss://` gateways, TLS server certificates are verified by default. To
@@ -235,7 +267,7 @@ connect to a gateway with an untrusted certificate, such as a self-signed
 certificate used during development, enable insecure mode explicitly:
 
 ```bash
-cargo run -- --gateway wss://www.wangguofang.net/websocat --insecure
+cargo run -- --gateway wss://wangguofang.net/tunnel --insecure
 ```
 
 Or in the TOML configuration:
@@ -259,6 +291,11 @@ insecure = true
 --basic-auth <USER:PASS>
                        HTTP Basic auth credential for the remote WebSocket gateway.
                        Falls back to WS2TCP_LOCAL_BASIC_AUTH when omitted
+--auth-mode <MODE>     How to authenticate to the gateway, one method at a time:
+                       token (no health check, log in once for an access token)
+                       or basic (health check, then Basic Auth on every
+                       connection; compatibility only, being phased out).
+                       Default: token
 --buffer-size <BYTES>  TCP read buffer size. Default: 16384
 --log-level <FILTER>   Logging filter, overriding RUST_LOG. Example: ws2tcp_local=debug
 --custom-domain-rules <PATH>

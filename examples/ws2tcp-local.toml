@@ -12,6 +12,17 @@ listen = "127.0.0.1:3128"
 gateway = "wss://example.com"
 # Optional. Prefer --basic-auth or WS2TCP_LOCAL_BASIC_AUTH for real credentials.
 # basic_auth = "user:pass"
+# Optional. How to authenticate to the gateway, one method at a time.
+# "token" (the default) needs a ws2tcp-router with token authentication (on by default
+# when the router has credentials configured): no health check is sent, the client logs
+# in once with the credentials above and opens tunnels with a short-lived access token
+# that it renews by itself. There is no fallback to Basic Auth: if the login fails,
+# startup fails.
+# "basic" checks the gateway on startup with a health check, then sends the Basic Auth
+# credentials on every connection. It is kept for compatibility with routers that have
+# no token authentication and is being phased out.
+# Without credentials authentication is not enabled: nothing is sent at startup.
+# auth_mode = "token"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
