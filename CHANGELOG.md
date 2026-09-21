@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 - 2026-09-21
+
+### Added
+
+- `--upstream-proxy <URL>` (and `upstream_proxy` in the config file) connects to the gateway
+  through a proxy server: `http://`, `socks5h://` (the proxy resolves the gateway's hostname) or
+  `socks5://` (resolved locally), optionally with `user:pass@` credentials. The tunnels, the
+  startup check and the token login all use it; requests that a routing rule sends direct do
+  not. An empty value turns off a proxy set in the config file. Requires a `ws2tcp-local-core`
+  that has `Settings::upstream_proxy`.
+
 ## 0.2.1 - 2026-09-21
 
 ### Added
