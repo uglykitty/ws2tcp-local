@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 - 2026-09-21
+
+### Fixed
+
+- `--upstream-proxy` (and `upstream_proxy` in the config file) now applies to all outgoing
+  connections: the requests that a routing rule sends direct and the rule list downloads go
+  through the proxy too, not only the connections to the gateway. Requires a
+  `ws2tcp-local-core` 0.3.1 or later.
+
 ## 0.3.0 - 2026-09-21
 
 ### Added
