@@ -1,6 +1,6 @@
 # ws2tcp-local
 
-[中文](README.zh-CN.md)
+[中文](README.zh_CN.md)
 
 `ws2tcp-local` is a local HTTP proxy client for `ws2tcp-router`.
 
