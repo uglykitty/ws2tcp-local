@@ -200,7 +200,7 @@ insecure = true
 
 ## 上游代理
 
-如果只能通过另一个代理服务器访问 gateway（例如在公司网络中），可用
+如果本机只能通过另一个代理服务器访问网络（例如在公司网络中），可用
 `--upstream-proxy` 指定：
 
 ```bash
@@ -215,11 +215,11 @@ upstream_proxy = "http://user:pass@proxy.example:3128"
 ```
 
 支持的协议：`http://`（HTTP 代理，使用 `CONNECT`）、`socks5h://`（SOCKS5 代理，
-由代理解析 gateway 域名）、`socks5://`（先在本地解析域名）。`user:pass@` 认证信息
+由代理解析域名）、`socks5://`（先在本地解析域名）。`user:pass@` 认证信息
 可选，其中的特殊字符需要百分号编码。端口默认为：`http://` 80，SOCKS5 协议 1080。
 
-所有访问 gateway 的连接都会经过它：隧道、启动时的健康检查以及 token 登录。
-被路由规则判定为直连的请求不经过它，因为它们根本不访问 gateway。不会读取
+所有出口连接都会经过它：访问 gateway 的隧道、启动时的健康检查和 token 登录，
+被路由规则判定为直连的请求（由代理代为连接），以及规则列表的下载。设置后不会读取
 代理环境变量（`HTTP_PROXY`、`ALL_PROXY` 等）。日志只显示代理地址，不显示认证信息；
 但命令行和配置文件会以明文保存认证信息，请限制其访问权限。传入空值
 `--upstream-proxy ""` 可关闭配置文件中设置的代理。
@@ -251,7 +251,7 @@ upstream_proxy = "http://user:pass@proxy.example:3128"
 --proxy-mode <MODE>    代理模式：auto 或 global。默认值：auto
 --insecure             跳过远端 WebSocket gateway 的 TLS 服务器证书校验。
                        默认：关闭
---upstream-proxy <URL> 通过代理服务器连接 gateway：http://、socks5h:// 或
+--upstream-proxy <URL> 让所有出口连接经过代理服务器：http://、socks5h:// 或
                        socks5:// URL，可带 user:pass@。默认：不使用
 ```
 

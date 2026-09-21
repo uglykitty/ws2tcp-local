@@ -70,10 +70,10 @@ pub struct Args {
     #[arg(long)]
     pub insecure: bool,
 
-    /// Connect to the gateway through this proxy server: http://[user:pass@]host[:port],
-    /// socks5h://[user:pass@]host[:port] (the proxy resolves the gateway's hostname) or
-    /// socks5://... (resolved locally). Requests that a routing rule sends direct are not
-    /// affected. Pass an empty value to override a proxy from --config. Default: none.
+    /// Send all outgoing connections through this proxy server: http://[user:pass@]host[:port],
+    /// socks5h://[user:pass@]host[:port] (the proxy resolves hostnames) or socks5://... (resolved
+    /// locally). That covers the gateway, requests that a routing rule sends direct, and the
+    /// rule list downloads. Pass an empty value to override a proxy from --config. Default: none.
     #[arg(long, value_name = "URL")]
     pub upstream_proxy: Option<String>,
 }
