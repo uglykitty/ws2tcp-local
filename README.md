@@ -284,6 +284,36 @@ Or in the TOML configuration:
 insecure = true
 ```
 
+## Upstream proxy
+
+When the gateway can only be reached through another proxy server, for example
+on a corporate network, point `ws2tcp-local` at it with `--upstream-proxy`:
+
+```bash
+cargo run -- --gateway wss://wangguofang.net/tunnel \
+  --upstream-proxy socks5h://127.0.0.1:1080
+```
+
+Or in the TOML configuration:
+
+```toml
+upstream_proxy = "http://user:pass@proxy.example:3128"
+```
+
+Supported schemes are `http://` (an HTTP proxy, used with `CONNECT`),
+`socks5h://` (a SOCKS5 proxy that resolves the gateway's hostname itself) and
+`socks5://` (the hostname is resolved locally first). `user:pass@` credentials
+are optional; percent-encode special characters in them. The port defaults to
+80 for `http://` and 1080 for the SOCKS5 schemes.
+
+Everything that reaches the gateway goes through it: the tunnels, the startup
+health check and the token login. Requests that a routing rule sends direct do
+not, since they never touch the gateway. The proxy environment variables
+(`HTTP_PROXY`, `ALL_PROXY`, ...) are not used. Logs show the proxy's address
+but never its credentials, which the command line and the config file do keep
+in plain text, so restrict access to them. An empty `--upstream-proxy ""`
+turns off a proxy set in the config file.
+
 ## Options
 
 ```text
@@ -313,6 +343,9 @@ insecure = true
 --proxy-mode <MODE>    Proxy mode: auto or global. Default: auto
 --insecure             Skip verification of the remote WebSocket gateway TLS
                        certificate. Default: disabled
+--upstream-proxy <URL> Connect to the gateway through a proxy server:
+                       http://, socks5h:// or socks5:// URL, optionally with
+                       user:pass@. Default: none
 ```
 
 ## License

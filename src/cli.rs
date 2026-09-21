@@ -69,6 +69,13 @@ pub struct Args {
     /// Skip verification of the remote WebSocket gateway TLS server certificate. Default: disabled.
     #[arg(long)]
     pub insecure: bool,
+
+    /// Connect to the gateway through this proxy server: http://[user:pass@]host[:port],
+    /// socks5h://[user:pass@]host[:port] (the proxy resolves the gateway's hostname) or
+    /// socks5://... (resolved locally). Requests that a routing rule sends direct are not
+    /// affected. Pass an empty value to override a proxy from --config. Default: none.
+    #[arg(long, value_name = "URL")]
+    pub upstream_proxy: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -116,12 +123,15 @@ impl From<Args> for SettingsOverrides {
             rule_refresh_interval_secs: args.rule_refresh_interval_secs,
             proxy_mode: args.proxy_mode.map(Into::into),
             insecure: args.insecure,
+            upstream_proxy: args.upstream_proxy,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use ws2tcp_local_core::Settings;
+
     use super::*;
 
     #[test]
@@ -138,6 +148,33 @@ mod tests {
     }
 
     #[test]
+    fn parses_the_upstream_proxy_into_the_settings() {
+        let args = Args::try_parse_from([
+            "ws2tcp-local",
+            "--gateway",
+            "wss://example.com",
+            "--upstream-proxy",
+            "socks5h://user:pass@127.0.0.1:1080",
+        ])
+        .unwrap();
+        let settings = Settings::resolve(args.into()).unwrap();
+        assert_eq!(
+            settings.upstream_proxy.unwrap().to_string(),
+            "socks5h://127.0.0.1:1080"
+        );
+
+        let args = Args::try_parse_from([
+            "ws2tcp-local",
+            "--gateway",
+            "wss://example.com",
+            "--upstream-proxy",
+            "ftp://127.0.0.1:21",
+        ])
+        .unwrap();
+        assert!(Settings::resolve(args.into()).is_err());
+    }
+
+    #[test]
     fn help_shows_parameter_defaults() {
         let error = Args::try_parse_from(["ws2tcp-local", "--help"]).unwrap_err();
         let help = error.to_string();
@@ -147,6 +184,7 @@ mod tests {
         assert!(help.contains("Default: 60"));
         assert!(help.contains("Default: auto"));
         assert!(help.contains("Default: disabled"));
+        assert!(help.contains("--upstream-proxy"));
         assert!(help.contains("--insecure"));
         assert!(!help.contains("--verify-server-certificate"));
     }

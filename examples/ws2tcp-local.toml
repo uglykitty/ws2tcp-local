@@ -23,6 +23,13 @@ gateway = "wss://example.com"
 # no token authentication and is being phased out.
 # Without credentials authentication is not enabled: nothing is sent at startup.
 # auth_mode = "token"
+# Optional. Connect to the gateway through a proxy server instead of directly:
+# http://[user:pass@]host[:port] (an HTTP proxy, used with CONNECT),
+# socks5h://[user:pass@]host[:port] (a SOCKS5 proxy that resolves the gateway's hostname)
+# or socks5://[user:pass@]host[:port] (the hostname is resolved locally). Percent-encode
+# special characters in the credentials. Requests that a routing rule sends direct do
+# not use it. Unset, or "", for no proxy.
+# upstream_proxy = "socks5h://127.0.0.1:1080"
 buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
