@@ -1,7 +1,8 @@
 use anyhow::{Result, anyhow};
 use clap::Parser;
-use tracing::{error, warn};
-use ws2tcp_local_core::{GatewayCheckError, Settings, run_proxy};
+use tokio::sync::mpsc;
+use tracing::{error, info, warn};
+use ws2tcp_local_core::{GatewayCheckError, ProxyMode, Settings, run_proxy_with_mode_updates};
 
 mod cli;
 
@@ -51,11 +52,18 @@ async fn main() -> Result<()> {
     init_logging(settings.log_level.as_deref())?;
     warn_if_basic_auth_may_leak(basic_auth_from_cli, basic_auth_from_environment);
 
-    let result = run_proxy(settings, async {
-        if let Err(err) = tokio::signal::ctrl_c().await {
-            tracing::warn!(error = %err, "failed to listen for Ctrl+C");
-        }
-    })
+    let (mode_updates_tx, mode_updates_rx) = mpsc::unbounded_channel();
+    spawn_proxy_mode_toggle(settings.proxy_mode, mode_updates_tx);
+
+    let result = run_proxy_with_mode_updates(
+        settings,
+        async {
+            if let Err(err) = tokio::signal::ctrl_c().await {
+                tracing::warn!(error = %err, "failed to listen for Ctrl+C");
+            }
+        },
+        mode_updates_rx,
+    )
     .await;
 
     // The gateway is checked before anything is served; tell the user what to fix and exit
@@ -70,6 +78,53 @@ async fn main() -> Result<()> {
     result
 }
 
+fn toggled(mode: ProxyMode) -> ProxyMode {
+    match mode {
+        ProxyMode::Auto => ProxyMode::Global,
+        ProxyMode::Global => ProxyMode::Auto,
+    }
+}
+
+fn mode_name(mode: ProxyMode) -> &'static str {
+    match mode {
+        ProxyMode::Auto => "auto",
+        ProxyMode::Global => "global",
+    }
+}
+
+/// Toggle between auto and global proxy mode every time the process receives SIGUSR1.
+#[cfg(unix)]
+fn spawn_proxy_mode_toggle(initial: ProxyMode, updates: mpsc::UnboundedSender<ProxyMode>) {
+    use tokio::signal::unix::{SignalKind, signal};
+
+    // Register the handler right away, before the gateway login and rule loading run, so an
+    // early SIGUSR1 is queued instead of hitting the default action and terminating the process.
+    let mut sigusr1 = match signal(SignalKind::user_defined1()) {
+        Ok(sigusr1) => sigusr1,
+        Err(err) => {
+            warn!(error = %err, "failed to listen for SIGUSR1; the proxy mode cannot be toggled by signal");
+            return;
+        }
+    };
+
+    tokio::spawn(async move {
+        let mut mode = initial;
+        while sigusr1.recv().await.is_some() {
+            mode = toggled(mode);
+            info!(
+                mode = mode_name(mode),
+                "received SIGUSR1; switching proxy mode"
+            );
+            if updates.send(mode).is_err() {
+                break;
+            }
+        }
+    });
+}
+
+#[cfg(not(unix))]
+fn spawn_proxy_mode_toggle(_initial: ProxyMode, _updates: mpsc::UnboundedSender<ProxyMode>) {}
+
 fn warn_if_basic_auth_may_leak(basic_auth_from_cli: bool, basic_auth_from_environment: bool) {
     if basic_auth_from_cli {
         warn!(
@@ -79,5 +134,16 @@ fn warn_if_basic_auth_may_leak(basic_auth_from_cli: bool, basic_auth_from_enviro
         warn!(
             "Basic Auth credentials supplied through WS2TCP_LOCAL_BASIC_AUTH may be exposed in shell history or the process environment; continuing startup"
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn toggles_between_auto_and_global() {
+        assert_eq!(toggled(ProxyMode::Auto), ProxyMode::Global);
+        assert_eq!(toggled(ProxyMode::Global), ProxyMode::Auto);
     }
 }

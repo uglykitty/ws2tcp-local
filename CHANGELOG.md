@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1 - 2026-09-21
+
+### Added
+
+- On Unix, sending `SIGUSR1` to a running process toggles the proxy mode between `auto`
+  and `global` (`kill -USR1 <pid>`). Not available on Windows. Requires a
+  `ws2tcp-local-core` that has `run_proxy_with_mode_updates`.
+
 ## 0.2.0 - 2026-09-20
 
 ### Added

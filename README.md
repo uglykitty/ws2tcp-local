@@ -262,6 +262,14 @@ every request through the gateway while skipping gfwlist download:
 cargo run -- --gateway wss://wangguofang.net/tunnel --proxy-mode global
 ```
 
+On Unix (Linux and macOS), send `SIGUSR1` to switch the proxy mode of a running
+process between `auto` and `global`, for example `kill -USR1 <pid>`. Each
+signal toggles the mode, starting from the mode the process was launched with.
+Switching to `auto` downloads the rules first and keeps the current mode until
+they are loaded; if that fails, unmatched domains are connected directly. The
+switch is logged, and it is not written back to the config file. Windows has no
+`SIGUSR1`, so this is not available there.
+
 For `wss://` gateways, TLS server certificates are verified by default. To
 connect to a gateway with an untrusted certificate, such as a self-signed
 certificate used during development, enable insecure mode explicitly:

@@ -179,6 +179,12 @@ cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.tx
 cargo run -- --gateway wss://example.com --proxy-mode global
 ```
 
+在 Unix（Linux 和 macOS）上，向运行中的进程发送 `SIGUSR1`（例如
+`kill -USR1 <pid>`）即可在 `auto` 和 `global` 之间切换代理模式。每收到一次信号
+就切换一次，起始模式为进程启动时使用的模式。切换到 `auto` 时会先下载规则，
+加载完成前保持当前模式；如果加载失败，未命中域名将直连。切换会记录到日志，
+不会写回配置文件。Windows 没有 `SIGUSR1`，因此不支持该功能。
+
 对于 `wss://` gateway，默认会校验 TLS 服务器证书。如果需要连接使用不受
 信任证书的 gateway（例如开发环境中的自签名证书），可以显式开启不安全模式：
 
