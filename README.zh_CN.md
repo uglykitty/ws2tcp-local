@@ -63,7 +63,11 @@ cargo run -- --listen 127.0.0.1:3128 --socks-listen --gateway wss://example.com
 ```
 
 SOCKS5 监听与 HTTP 监听共用同一个 gateway、路由规则和代理模式，且只支持
-无认证（no-authentication）的 SOCKS5 方式。
+无认证（no-authentication）的 SOCKS5 方式。同时支持 `CONNECT` 和
+`UDP ASSOCIATE`：UDP 客户端会拿到一个本地中继端口，同一个 association 内可以
+向任意多个目标发送数据报，每个目标各自按照和 `CONNECT` 相同的路由规则，
+经网关（需要 `ws2tcp-router` 0.2.0 及以上版本）转发或直接连接。某个目标
+60 秒没有任何流量，或者 SOCKS5 控制连接本身关闭时，会被关闭。
 
 如果远端 router 需要 HTTP Basic 认证：
 

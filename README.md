@@ -92,7 +92,13 @@ cargo run -- --listen 127.0.0.1:3128 --socks-listen --gateway wss://wangguofang.
 ```
 
 The SOCKS5 listener shares the same gateway, routing rules, and proxy mode as
-the HTTP listener; only the no-authentication SOCKS5 method is supported.
+the HTTP listener; only the no-authentication SOCKS5 method is supported. It
+accepts both `CONNECT` and `UDP ASSOCIATE`: a UDP client gets a local relay
+socket back and can send datagrams to any number of destinations within that
+association, each proxied through the gateway (a `ws2tcp-router` 0.2.0 or
+later) or connected directly, by the same routing rules as `CONNECT`. A
+destination idle for 60 seconds, or the whole association once its SOCKS5
+control connection closes, is torn down.
 
 If the remote router requires HTTP Basic authentication:
 
