@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 - 2026-09-22
+
+### Added
+
+- **`--socks-listen` now accepts SOCKS5 `UDP ASSOCIATE`, not only `CONNECT`.** A UDP client
+  gets a local relay socket back and can send datagrams to any number of destinations within
+  one association, each proxied through the gateway or connected directly by the same routing
+  rules as `CONNECT`. A destination idle for 60 seconds, or the whole association once its
+  control connection closes, is torn down. Requires a `ws2tcp-local-core` 0.4.0 or later, and a
+  gateway (`ws2tcp-router` 0.2.0 or later) that answers `/udp:` tunnels.
+
 ## 0.3.1 - 2026-09-21
 
 ### Fixed
