@@ -1,12 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 - 2026-10-08
 
 ### Added
 
 - **`--http3`** (`http3 = true` in the config file) opens gateway tunnels as WebSocket over
   HTTP/3 (RFC 9220), falling back to HTTP/1.1 over TCP when that fails. Needs a `wss://`
   gateway and no `--upstream-proxy`. Requires `ws2tcp-local-core` 0.5.0 or later.
+
+### Changed
+
+- The per-request logs show the transport each gateway tunnel took (`transport="quic"` or
+  `"tcp"`), and `target` carries a `tcp:` or `udp:` prefix in place of the `gateway` URL.
+- `ws2tcp-local-core` is now a git submodule. Building from source needs a clone with
+  submodules (`git clone --recursive`), and the Podman/Docker image is built from the
+  repository root.
 
 ## 0.4.0 - 2026-09-22
 
