@@ -71,7 +71,14 @@ to skip rule loading and proxy every request.
 
 ## Build
 
+`ws2tcp-local-core` is included as a git submodule. Clone with submodules, or
+initialize them in an existing checkout:
+
 ```bash
+git clone --recursive https://github.com/uglykitty/ws2tcp-local.git
+# or, in an existing checkout:
+git submodule update --init
+
 cargo build --release
 ```
 
@@ -201,11 +208,10 @@ ws2tcp-local --generate-config > ws2tcp-local.toml
 
 ## Podman
 
-Build the image from the parent directory, which must contain both the
-`ws2tcp-local` and `ws2tcp-local-core` repositories:
+Build the image from the repository root, with the submodule initialized:
 
 ```bash
-podman build -t ws2tcp-local -f ws2tcp-local/Dockerfile .
+podman build -t ws2tcp-local .
 ```
 
 Create a configuration file for the container. The listener must bind to all

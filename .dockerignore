@@ -3,3 +3,5 @@
 target
 Dockerfile
 docker-compose*.yml
+ws2tcp-local-core/target
+ws2tcp-local-core/.git

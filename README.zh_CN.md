@@ -42,7 +42,14 @@ https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
 
 ## 构建
 
+`ws2tcp-local-core` 以 git 子模块的形式包含在仓库中。克隆时需要带上子模块，
+或者在已有的检出中初始化子模块：
+
 ```bash
+git clone --recursive https://github.com/uglykitty/ws2tcp-local.git
+# 或者在已有的检出中：
+git submodule update --init
+
 cargo build --release
 ```
 
