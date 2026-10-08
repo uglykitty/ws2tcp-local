@@ -184,6 +184,7 @@ buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
 insecure = false
+# http3 = true
 custom_domain_rules = "custom-domains.txt"
 rule_refresh_interval_secs = 60
 ```
@@ -328,6 +329,16 @@ but never its credentials, which the command line and the config file do keep
 in plain text, so restrict access to them. An empty `--upstream-proxy ""`
 turns off a proxy set in the config file.
 
+## HTTP/3
+
+`--http3` (or `http3 = true` in the config file) opens the gateway tunnels as WebSocket over
+HTTP/3 (RFC 9220) instead of HTTP/1.1, all of them on one shared QUIC connection. The gateway
+(and any reverse proxy in front of `ws2tcp-router`) must support WebSocket over HTTP/3 on UDP.
+If HTTP/3 fails (UDP blocked, no RFC 9220 support), connections fall back to HTTP/1.1 over TCP
+for the next 60 seconds. It applies only to `wss://` gateways, and is ignored with
+`--upstream-proxy`, since QUIC cannot pass through an HTTP or SOCKS5 proxy. The token endpoints
+still use HTTP over TCP.
+
 ## Options
 
 ```text
@@ -357,6 +368,9 @@ turns off a proxy set in the config file.
 --proxy-mode <MODE>    Proxy mode: auto or global. Default: auto
 --insecure             Skip verification of the remote WebSocket gateway TLS
                        certificate. Default: disabled
+--http3                Open gateway tunnels over HTTP/3 (WebSocket over QUIC,
+                       RFC 9220), falling back to HTTP/1.1 over TCP. Needs a
+                       wss:// gateway. Default: disabled
 --upstream-proxy <URL> Send all outgoing connections through a proxy server:
                        http://, socks5h:// or socks5:// URL, optionally with
                        user:pass@. Default: none

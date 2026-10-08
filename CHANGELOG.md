@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **`--http3`** (`http3 = true` in the config file) opens gateway tunnels as WebSocket over
+  HTTP/3 (RFC 9220), falling back to HTTP/1.1 over TCP when that fails. Needs a `wss://`
+  gateway and no `--upstream-proxy`. Requires `ws2tcp-local-core` 0.5.0 or later.
+
 ## 0.4.0 - 2026-09-22
 
 ### Added

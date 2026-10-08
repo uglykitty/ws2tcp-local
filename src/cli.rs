@@ -70,6 +70,12 @@ pub struct Args {
     #[arg(long)]
     pub insecure: bool,
 
+    /// Open gateway tunnels over HTTP/3 (WebSocket over QUIC, RFC 9220), falling back to HTTP/1.1
+    /// over TCP when that fails. Needs a wss:// gateway, and is ignored with --upstream-proxy.
+    /// Default: disabled.
+    #[arg(long)]
+    pub http3: bool,
+
     /// Send all outgoing connections through this proxy server: http://[user:pass@]host[:port],
     /// socks5h://[user:pass@]host[:port] (the proxy resolves hostnames) or socks5://... (resolved
     /// locally). That covers the gateway, requests that a routing rule sends direct, and the
@@ -123,6 +129,7 @@ impl From<Args> for SettingsOverrides {
             rule_refresh_interval_secs: args.rule_refresh_interval_secs,
             proxy_mode: args.proxy_mode.map(Into::into),
             insecure: args.insecure,
+            http3: args.http3,
             upstream_proxy: args.upstream_proxy,
         }
     }
@@ -186,6 +193,7 @@ mod tests {
         assert!(help.contains("Default: disabled"));
         assert!(help.contains("--upstream-proxy"));
         assert!(help.contains("--insecure"));
+        assert!(help.contains("--http3"));
         assert!(!help.contains("--verify-server-certificate"));
     }
 }
