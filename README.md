@@ -339,6 +339,27 @@ for the next 60 seconds. It applies only to `wss://` gateways, and is ignored wi
 `--upstream-proxy`, since QUIC cannot pass through an HTTP or SOCKS5 proxy. The token endpoints
 still use HTTP over TCP.
 
+`--http3-only` (or `http3_only = true`) is `--http3` without the fallback: when HTTP/3 does not
+work, tunnels fail instead of using TCP. Because there is nothing to fall back to, the proxy
+refuses to start with a `ws://` gateway or with `--upstream-proxy`. It implies `--http3`.
+
+### Inspecting the QUIC connection
+
+All tunnels share one QUIC connection, so a system tool such as `ss` sees only a UDP socket. To
+see the connection itself, start the proxy with `--control <PATH>` (a Unix socket, mode 0600;
+Linux and other Unix systems only) and query it from another terminal:
+
+```bash
+ws2tcp-local --config ws2tcp-local.toml --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"
+ws2tcp-local netstat --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"
+ws2tcp-local netstat --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock" --watch 2   # refresh, adds Tx/s and Rx/s
+ws2tcp-local netstat --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock" --json
+```
+
+It lists each QUIC connection with its addresses, state, RTT, open tunnels, lost packets and UDP
+bytes sent and received, and says when HTTP/3 is paused after a failure (tunnels use TCP for
+60 seconds). The table fits the terminal; a narrow one gets a few lines per connection.
+
 ## Options
 
 ```text
@@ -371,9 +392,23 @@ still use HTTP over TCP.
 --http3                Open gateway tunnels over HTTP/3 (WebSocket over QUIC,
                        RFC 9220), falling back to HTTP/1.1 over TCP. Needs a
                        wss:// gateway. Default: disabled
+--http3-only           Like --http3, but tunnels fail instead of falling back to
+                       TCP. Needs a wss:// gateway and no --upstream-proxy.
+                       Default: disabled
+--control <PATH>       Serve a snapshot of the HTTP/3 connections on this Unix
+                       socket, for `ws2tcp-local netstat --control <PATH>`.
+                       Default: none
 --upstream-proxy <URL> Send all outgoing connections through a proxy server:
                        http://, socks5h:// or socks5:// URL, optionally with
                        user:pass@. Default: none
+```
+
+Subcommand:
+
+```text
+netstat --control <PATH> [--json] [--watch <SECONDS>]
+                       Show the HTTP/3 connections of a running proxy that was
+                       started with --control
 ```
 
 ## License

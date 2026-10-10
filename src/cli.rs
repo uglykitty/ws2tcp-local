@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, path::PathBuf};
 
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 use ws2tcp_local_core::{AuthMode, ProxyMode, SettingsOverrides};
 
 pub const CONFIG_TEMPLATE: &str = include_str!("../examples/ws2tcp-local.toml");
@@ -12,6 +12,9 @@ pub const CONFIG_TEMPLATE: &str = include_str!("../examples/ws2tcp-local.toml");
     about = "Local HTTP proxy for ws2tcp-router"
 )]
 pub struct Args {
+    #[command(subcommand)]
+    pub command: Option<Command>,
+
     /// Print a TOML configuration template to stdout and exit.
     #[arg(long)]
     pub generate_config: bool,
@@ -76,12 +79,39 @@ pub struct Args {
     #[arg(long)]
     pub http3: bool,
 
+    /// Like --http3, but never fall back to HTTP/1.1 over TCP: when HTTP/3 does not work, tunnels
+    /// fail. Needs a wss:// gateway and no --upstream-proxy, or the proxy refuses to start. Only
+    /// tunnels are affected; token login still uses HTTPS over TCP. Implies --http3. Default:
+    /// disabled.
+    #[arg(long)]
+    pub http3_only: bool,
+
     /// Send all outgoing connections through this proxy server: http://[user:pass@]host[:port],
     /// socks5h://[user:pass@]host[:port] (the proxy resolves hostnames) or socks5://... (resolved
     /// locally). That covers the gateway, requests that a routing rule sends direct, and the
     /// rule list downloads. Pass an empty value to override a proxy from --config. Default: none.
     #[arg(long, value_name = "URL")]
     pub upstream_proxy: Option<String>,
+
+    /// Unix socket path. While the proxy runs it serves a snapshot of its HTTP/3 connections
+    /// there, which `ws2tcp-local netstat --control PATH` prints. Omitted, no socket is created.
+    /// Linux and other Unix systems only.
+    #[arg(long, global = true, value_name = "PATH")]
+    pub control: Option<PathBuf>,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum Command {
+    /// Show the HTTP/3 connections of a running proxy (started with --control), like netstat.
+    Netstat {
+        /// Print the snapshot as JSON instead of a table.
+        #[arg(long)]
+        json: bool,
+
+        /// Print again every SECS seconds until interrupted.
+        #[arg(long, value_name = "SECS")]
+        watch: Option<u64>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -130,6 +160,7 @@ impl From<Args> for SettingsOverrides {
             proxy_mode: args.proxy_mode.map(Into::into),
             insecure: args.insecure,
             http3: args.http3,
+            http3_only: args.http3_only,
             upstream_proxy: args.upstream_proxy,
         }
     }
@@ -194,6 +225,63 @@ mod tests {
         assert!(help.contains("--upstream-proxy"));
         assert!(help.contains("--insecure"));
         assert!(help.contains("--http3"));
+        assert!(help.contains("--http3-only"));
         assert!(!help.contains("--verify-server-certificate"));
+    }
+
+    #[test]
+    fn parses_the_netstat_subcommand() {
+        let args = Args::try_parse_from([
+            "ws2tcp-local",
+            "netstat",
+            "--control",
+            "/tmp/ws2tcp.sock",
+            "--json",
+            "--watch",
+            "2",
+        ])
+        .unwrap();
+
+        assert_eq!(
+            args.control.as_deref(),
+            Some(std::path::Path::new("/tmp/ws2tcp.sock"))
+        );
+        match args.command {
+            Some(Command::Netstat { json, watch }) => {
+                assert!(json);
+                assert_eq!(watch, Some(2));
+            }
+            None => panic!("expected the netstat subcommand"),
+        }
+    }
+
+    #[test]
+    fn running_the_proxy_needs_no_subcommand() {
+        let args = Args::try_parse_from([
+            "ws2tcp-local",
+            "--gateway",
+            "wss://example.com",
+            "--control",
+            "/tmp/ws2tcp.sock",
+        ])
+        .unwrap();
+
+        assert!(args.command.is_none());
+        assert!(args.control.is_some());
+    }
+
+    #[test]
+    fn parses_http3_only_into_the_settings() {
+        let args = Args::try_parse_from([
+            "ws2tcp-local",
+            "--gateway",
+            "wss://example.com",
+            "--http3-only",
+        ])
+        .unwrap();
+        assert!(args.http3_only);
+        assert!(!args.http3);
+        let settings = Settings::resolve(args.into()).unwrap();
+        assert!(settings.http3_only);
     }
 }

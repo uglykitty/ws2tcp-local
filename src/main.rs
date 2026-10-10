@@ -5,6 +5,8 @@ use tracing::{error, info, warn};
 use ws2tcp_local_core::{GatewayCheckError, ProxyMode, Settings, run_proxy_with_mode_updates};
 
 mod cli;
+mod control;
+mod netstat;
 
 fn init_logging(log_level: Option<&str>) -> Result<()> {
     let filter = match log_level {
@@ -39,6 +41,14 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
+    if let Some(cli::Command::Netstat { json, watch }) = &args.command {
+        let path = args.control.as_deref().ok_or_else(|| {
+            anyhow!("netstat needs --control PATH, the socket of the running proxy")
+        })?;
+        return netstat::run(path, *json, *watch).await;
+    }
+
+    let control_path = args.control.clone();
     let basic_auth_from_cli = args.basic_auth.is_some();
     let mut settings = Settings::resolve(args.into())?;
     settings.add_header(
@@ -55,6 +65,10 @@ async fn main() -> Result<()> {
     let (mode_updates_tx, mode_updates_rx) = mpsc::unbounded_channel();
     spawn_proxy_mode_toggle(settings.proxy_mode, mode_updates_tx);
     spawn_quic_reset();
+    let _control = match control_path {
+        Some(path) => Some(control::serve(path)?),
+        None => None,
+    };
 
     let result = run_proxy_with_mode_updates(
         settings,

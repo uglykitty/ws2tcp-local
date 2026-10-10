@@ -262,8 +262,22 @@ upstream_proxy = "http://user:pass@proxy.example:3128"
 --proxy-mode <MODE>    代理模式：auto 或 global。默认值：auto
 --insecure             跳过远端 WebSocket gateway 的 TLS 服务器证书校验。
                        默认：关闭
+--http3                经 HTTP/3（QUIC 上的 WebSocket，RFC 9220）建立 gateway 隧道，
+                       失败时回退到 TCP 上的 HTTP/1.1。需要 wss:// gateway。
+                       默认：关闭
+--http3-only           与 --http3 相同，但失败时隧道直接失败，不回退 TCP。需要
+                       wss:// gateway 且不能使用 --upstream-proxy。默认：关闭
+--control <PATH>       在该 Unix socket 上提供 HTTP/3 连接快照，供
+                       `ws2tcp-local netstat --control <PATH>` 查看。默认：不启用
 --upstream-proxy <URL> 让所有出口连接经过代理服务器：http://、socks5h:// 或
                        socks5:// URL，可带 user:pass@。默认：不使用
+```
+
+子命令：
+
+```text
+netstat --control <PATH> [--json] [--watch <SECONDS>]
+                       查看以 --control 启动的运行中代理的 HTTP/3 连接
 ```
 
 ## 许可证

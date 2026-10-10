@@ -62,6 +62,11 @@ insecure = false
 # WebSocket over HTTP/3 on UDP, and is ignored together with upstream_proxy.
 # http3 = false
 #
+# Optional. Defaults to false. Like http3, but without the fallback: when HTTP/3 does not
+# work, tunnels fail instead of using TCP. Refused at startup with a ws:// gateway or together
+# with upstream_proxy. Implies http3.
+# http3_only = false
+#
 # Optional. Merge one Squid dstdomain entry per line with the built-in gfwlist.
 # Relative paths are resolved from this config file's directory. In auto mode,
 # this file is checked on the same refresh interval and reloaded only when its
