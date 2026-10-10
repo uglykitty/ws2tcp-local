@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.2 - 2026-10-10
+
+### Added
+
+- **On Unix, sending `SIGUSR2` to a running process rebuilds the QUIC connection to the gateway.**
+  All tunnels share one HTTP/3 connection, so the gateway is only resolved again once that
+  connection closes. After `SIGUSR2` the next tunnel resolves the gateway and dials a new QUIC
+  connection, which is useful when the gateway's address changes. Tunnels that are already
+  running are not interrupted. Requires `ws2tcp-local-core` 0.5.1.
+
 ## 0.5.1 - 2026-10-10
 
 ### Fixed
