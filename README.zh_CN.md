@@ -190,11 +190,25 @@ cargo run -- --gateway wss://example.com --custom-domain-rules custom-domains.tx
 cargo run -- --gateway wss://example.com --proxy-mode global
 ```
 
-在 Unix（Linux 和 macOS）上，向运行中的进程发送 `SIGUSR1`（例如
-`kill -USR1 <pid>`）即可在 `auto` 和 `global` 之间切换代理模式。每收到一次信号
-就切换一次，起始模式为进程启动时使用的模式。切换到 `auto` 时会先下载规则，
-加载完成前保持当前模式；如果加载失败，未命中域名将直连。切换会记录到日志，
-不会写回配置文件。Windows 没有 `SIGUSR1`，因此不支持该功能。
+在 Unix 上，用 `--control <PATH>` 启动代理后，可以用
+`ws2tcp-local config --control <PATH>` 查看和修改运行中进程的设置：
+
+子命令（`netstat`、`config`、`reset-quic`）省略 `--control` 时默认使用
+`$XDG_RUNTIME_DIR/ws2tcp-local.sock`，代理用这个路径启动时可以不写：
+
+```bash
+ws2tcp-local config get --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"            # 全部设置
+ws2tcp-local config get mode --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"
+ws2tcp-local config set mode global --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"   # 或 auto
+ws2tcp-local config set http3 on --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"      # off、on 或 only
+```
+
+`mode` 为 `auto` 或 `global`。切换到 `auto` 时会先下载规则，加载完成前保持当前模式；
+如果加载失败，未命中域名将直连。`http3` 为 `off`、`on`（先走 HTTP/3，失败回落到 TCP，
+等同 `--http3`）或 `only`（等同 `--http3-only`），对新建隧道生效；gateway 不是
+`wss://` 或设置了上游代理时会被拒绝。修改会记录到日志，不会写回配置文件。
+`ws2tcp-local reset-quic --control <PATH>` 会丢弃缓存的 HTTP/3 连接，下一条隧道将重新
+建立连接。不再处理 `SIGUSR1` 和 `SIGUSR2`。Windows 不支持 control socket。
 
 对于 `wss://` gateway，默认会校验 TLS 服务器证书。如果需要连接使用不受
 信任证书的 gateway（例如开发环境中的自签名证书），可以显式开启不安全模式：
@@ -278,6 +292,12 @@ upstream_proxy = "http://user:pass@proxy.example:3128"
 ```text
 netstat --control <PATH> [--json] [--watch <SECONDS>]
                        查看以 --control 启动的运行中代理的 HTTP/3 连接
+config get [mode|http3] --control <PATH>
+                       查看运行中代理的某项设置，省略则显示全部
+config set <mode|http3> <VALUE> --control <PATH>
+                       修改运行中代理的设置：mode auto|global，http3 off|on|only
+reset-quic --control <PATH>
+                       丢弃运行中代理缓存的 HTTP/3 连接
 ```
 
 ## 许可证

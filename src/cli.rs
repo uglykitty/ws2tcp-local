@@ -93,9 +93,9 @@ pub struct Args {
     #[arg(long, value_name = "URL")]
     pub upstream_proxy: Option<String>,
 
-    /// Unix socket path. While the proxy runs it serves a snapshot of its HTTP/3 connections
-    /// there, which `ws2tcp-local netstat --control PATH` prints. Omitted, no socket is created.
-    /// Linux and other Unix systems only.
+    /// Unix socket path. While the proxy runs it listens there: `ws2tcp-local netstat`,
+    /// `config` and `reset-quic` with the same --control PATH talk to it. Omitted, the proxy creates no socket and the subcommands use
+    /// $XDG_RUNTIME_DIR/ws2tcp-local.sock. Linux and other Unix systems only.
     #[arg(long, global = true, value_name = "PATH")]
     pub control: Option<PathBuf>,
 }
@@ -112,6 +112,50 @@ pub enum Command {
         #[arg(long, value_name = "SECS")]
         watch: Option<u64>,
     },
+    /// Read or change a setting of a running proxy (started with --control).
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+    /// Make a running proxy (started with --control) drop its cached HTTP/3 connection, so the
+    /// next tunnel dials a new one.
+    ResetQuic,
+}
+
+/// The socket the subcommands use when --control is omitted: `ws2tcp-local.sock` in
+/// `$XDG_RUNTIME_DIR`, where the proxy is usually started with `--control`.
+pub fn default_control_path() -> Option<PathBuf> {
+    let dir = std::env::var_os("XDG_RUNTIME_DIR").filter(|dir| !dir.is_empty())?;
+    Some(PathBuf::from(dir).join("ws2tcp-local.sock"))
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ConfigAction {
+    /// Print a setting, or all of them when KEY is omitted.
+    Get { key: Option<ConfigKey> },
+    /// Change a setting for as long as the proxy runs; the config file is not touched.
+    Set {
+        key: ConfigKey,
+        /// mode: auto or global. http3: off, on (HTTP/3 first, TCP as the fallback) or only.
+        value: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum ConfigKey {
+    /// The proxy mode.
+    Mode,
+    /// How tunnels use HTTP/3.
+    Http3,
+}
+
+impl ConfigKey {
+    pub fn name(self) -> &'static str {
+        match self {
+            ConfigKey::Mode => "mode",
+            ConfigKey::Http3 => "http3",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -251,7 +295,7 @@ mod tests {
                 assert!(json);
                 assert_eq!(watch, Some(2));
             }
-            None => panic!("expected the netstat subcommand"),
+            _ => panic!("expected the netstat subcommand"),
         }
     }
 

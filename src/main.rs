@@ -1,8 +1,10 @@
+use std::sync::Arc;
+
 use anyhow::{Result, anyhow};
 use clap::Parser;
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
-use ws2tcp_local_core::{GatewayCheckError, ProxyMode, Settings, run_proxy_with_mode_updates};
+use tracing::{error, warn};
+use ws2tcp_local_core::{GatewayCheckError, Settings, run_proxy_with_updates};
 
 mod cli;
 mod control;
@@ -41,11 +43,37 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    if let Some(cli::Command::Netstat { json, watch }) = &args.command {
-        let path = args.control.as_deref().ok_or_else(|| {
-            anyhow!("netstat needs --control PATH, the socket of the running proxy")
-        })?;
-        return netstat::run(path, *json, *watch).await;
+    if let Some(command) = &args.command {
+        let path = args
+            .control
+            .clone()
+            .or_else(cli::default_control_path)
+            .ok_or_else(|| {
+                anyhow!("this command needs --control PATH, the socket of the running proxy")
+            })?;
+        let path = path.as_path();
+        return match command {
+            cli::Command::Netstat { json, watch } => netstat::run(path, *json, *watch).await,
+            cli::Command::Config { action } => {
+                let command = match action {
+                    cli::ConfigAction::Get { key: None } => "get".to_owned(),
+                    cli::ConfigAction::Get { key: Some(key) } => format!("get {}", key.name()),
+                    cli::ConfigAction::Set { key, value } => {
+                        format!("set {} {}", key.name(), value)
+                    }
+                };
+                let reply = control::request(path, &command).await?;
+                print!("{reply}");
+                if reply.starts_with("error") {
+                    std::process::exit(1);
+                }
+                Ok(())
+            }
+            cli::Command::ResetQuic => {
+                print!("{}", control::request(path, "reset-quic").await?);
+                Ok(())
+            }
+        };
     }
 
     let control_path = args.control.clone();
@@ -63,14 +91,18 @@ async fn main() -> Result<()> {
     warn_if_basic_auth_may_leak(basic_auth_from_cli, basic_auth_from_environment);
 
     let (mode_updates_tx, mode_updates_rx) = mpsc::unbounded_channel();
-    spawn_proxy_mode_toggle(settings.proxy_mode, mode_updates_tx);
-    spawn_quic_reset();
+    let (http3_updates_tx, http3_updates_rx) = mpsc::unbounded_channel();
+    let controller = Arc::new(control::Controller::new(
+        &settings,
+        mode_updates_tx,
+        http3_updates_tx,
+    ));
     let _control = match control_path {
-        Some(path) => Some(control::serve(path)?),
+        Some(path) => Some(control::serve(path, controller)?),
         None => None,
     };
 
-    let result = run_proxy_with_mode_updates(
+    let result = run_proxy_with_updates(
         settings,
         async {
             if let Err(err) = tokio::signal::ctrl_c().await {
@@ -78,6 +110,7 @@ async fn main() -> Result<()> {
             }
         },
         mode_updates_rx,
+        http3_updates_rx,
     )
     .await;
 
@@ -93,78 +126,6 @@ async fn main() -> Result<()> {
     result
 }
 
-fn toggled(mode: ProxyMode) -> ProxyMode {
-    match mode {
-        ProxyMode::Auto => ProxyMode::Global,
-        ProxyMode::Global => ProxyMode::Auto,
-    }
-}
-
-fn mode_name(mode: ProxyMode) -> &'static str {
-    match mode {
-        ProxyMode::Auto => "auto",
-        ProxyMode::Global => "global",
-    }
-}
-
-/// Toggle between auto and global proxy mode every time the process receives SIGUSR1.
-#[cfg(unix)]
-fn spawn_proxy_mode_toggle(initial: ProxyMode, updates: mpsc::UnboundedSender<ProxyMode>) {
-    use tokio::signal::unix::{SignalKind, signal};
-
-    // Register the handler right away, before the gateway login and rule loading run, so an
-    // early SIGUSR1 is queued instead of hitting the default action and terminating the process.
-    let mut sigusr1 = match signal(SignalKind::user_defined1()) {
-        Ok(sigusr1) => sigusr1,
-        Err(err) => {
-            warn!(error = %err, "failed to listen for SIGUSR1; the proxy mode cannot be toggled by signal");
-            return;
-        }
-    };
-
-    tokio::spawn(async move {
-        let mut mode = initial;
-        while sigusr1.recv().await.is_some() {
-            mode = toggled(mode);
-            info!(
-                mode = mode_name(mode),
-                "received SIGUSR1; switching proxy mode"
-            );
-            if updates.send(mode).is_err() {
-                break;
-            }
-        }
-    });
-}
-
-#[cfg(not(unix))]
-fn spawn_proxy_mode_toggle(_initial: ProxyMode, _updates: mpsc::UnboundedSender<ProxyMode>) {}
-
-/// Drop the cached HTTP/3 connection to the gateway every time the process receives SIGUSR2, so
-/// the next tunnel resolves the gateway again and dials a new QUIC connection.
-#[cfg(unix)]
-fn spawn_quic_reset() {
-    use tokio::signal::unix::{SignalKind, signal};
-
-    let mut sigusr2 = match signal(SignalKind::user_defined2()) {
-        Ok(sigusr2) => sigusr2,
-        Err(err) => {
-            warn!(error = %err, "failed to listen for SIGUSR2; the QUIC connection cannot be reset by signal");
-            return;
-        }
-    };
-
-    tokio::spawn(async move {
-        while sigusr2.recv().await.is_some() {
-            info!("received SIGUSR2; the next tunnel will dial a new QUIC connection");
-            ws2tcp_local_core::reset_sessions().await;
-        }
-    });
-}
-
-#[cfg(not(unix))]
-fn spawn_quic_reset() {}
-
 fn warn_if_basic_auth_may_leak(basic_auth_from_cli: bool, basic_auth_from_environment: bool) {
     if basic_auth_from_cli {
         warn!(
@@ -174,16 +135,5 @@ fn warn_if_basic_auth_may_leak(basic_auth_from_cli: bool, basic_auth_from_enviro
         warn!(
             "Basic Auth credentials supplied through WS2TCP_LOCAL_BASIC_AUTH may be exposed in shell history or the process environment; continuing startup"
         );
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn toggles_between_auto_and_global() {
-        assert_eq!(toggled(ProxyMode::Auto), ProxyMode::Global);
-        assert_eq!(toggled(ProxyMode::Global), ProxyMode::Auto);
     }
 }

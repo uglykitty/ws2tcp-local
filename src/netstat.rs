@@ -53,27 +53,8 @@ async fn print_once(path: &Path, json: bool) -> Result<()> {
     Ok(())
 }
 
-#[cfg(unix)]
 async fn fetch(path: &Path) -> Result<String> {
-    use anyhow::Context;
-    use tokio::{io::AsyncReadExt, net::UnixStream};
-
-    let mut stream = UnixStream::connect(path).await.with_context(|| {
-        format!(
-            "cannot reach the proxy on {}; is it running with --control?",
-            path.display()
-        )
-    })?;
-    let mut body = String::new();
-    stream.read_to_string(&mut body).await?;
-    Ok(body)
-}
-
-#[cfg(not(unix))]
-async fn fetch(_path: &Path) -> Result<String> {
-    Err(anyhow::anyhow!(
-        "netstat is only supported on Linux and other Unix systems"
-    ))
+    crate::control::request(path, "snapshot").await
 }
 
 /// `rates` is `None` for a single snapshot, which has no rate to show. In watch mode it is

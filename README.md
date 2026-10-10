@@ -275,13 +275,27 @@ every request through the gateway while skipping gfwlist download:
 cargo run -- --gateway wss://wangguofang.net/tunnel --proxy-mode global
 ```
 
-On Unix (Linux and macOS), send `SIGUSR1` to switch the proxy mode of a running
-process between `auto` and `global`, for example `kill -USR1 <pid>`. Each
-signal toggles the mode, starting from the mode the process was launched with.
-Switching to `auto` downloads the rules first and keeps the current mode until
-they are loaded; if that fails, unmatched domains are connected directly. The
-switch is logged, and it is not written back to the config file. Windows has no
-`SIGUSR1`, so this is not available there.
+On Unix, start the proxy with `--control <PATH>` and change settings of the running
+process with `ws2tcp-local config --control <PATH>`:
+
+The subcommands (`netstat`, `config`, `reset-quic`) use `$XDG_RUNTIME_DIR/ws2tcp-local.sock`
+when `--control` is omitted, so with that path you can leave it out:
+
+```bash
+ws2tcp-local config get --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"            # all settings
+ws2tcp-local config get mode --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"
+ws2tcp-local config set mode global --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"   # or auto
+ws2tcp-local config set http3 on --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"      # off, on or only
+```
+
+`mode` is `auto` or `global`. Switching to `auto` downloads the rules first and keeps the
+current mode until they are loaded; if that fails, unmatched domains are connected directly.
+`http3` is `off`, `on` (HTTP/3 first, TCP as the fallback; the same as `--http3`) or `only`
+(the same as `--http3-only`); it applies to new tunnels, and it is refused when the gateway
+is not `wss://` or an upstream proxy is set. Changes are logged and not written back to the
+config file. `ws2tcp-local reset-quic --control <PATH>` drops the cached HTTP/3 connection,
+so the next tunnel dials a new one. `SIGUSR1` and `SIGUSR2` are no longer handled. The
+control socket is not available on Windows.
 
 For `wss://` gateways, TLS server certificates are verified by default. To
 connect to a gateway with an untrusted certificate, such as a self-signed
@@ -395,8 +409,8 @@ bytes sent and received, and says when HTTP/3 is paused after a failure (tunnels
 --http3-only           Like --http3, but tunnels fail instead of falling back to
                        TCP. Needs a wss:// gateway and no --upstream-proxy.
                        Default: disabled
---control <PATH>       Serve a snapshot of the HTTP/3 connections on this Unix
-                       socket, for `ws2tcp-local netstat --control <PATH>`.
+--control <PATH>       Listen on this Unix socket for netstat, config and
+                       reset-quic commands with the same --control <PATH>.
                        Default: none
 --upstream-proxy <URL> Send all outgoing connections through a proxy server:
                        http://, socks5h:// or socks5:// URL, optionally with
@@ -409,6 +423,13 @@ Subcommand:
 netstat --control <PATH> [--json] [--watch <SECONDS>]
                        Show the HTTP/3 connections of a running proxy that was
                        started with --control
+config get [mode|http3] --control <PATH>
+                       Show a setting of a running proxy, or all of them
+config set <mode|http3> <VALUE> --control <PATH>
+                       Change a setting of a running proxy: mode auto|global,
+                       http3 off|on|only
+reset-quic --control <PATH>
+                       Drop the cached HTTP/3 connection of a running proxy
 ```
 
 ## License
