@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.7.0 - 2026-10-10
+
+### Added
+
+- **`ws2tcp-local config get [mode|http3]` and `config set <mode|http3> <VALUE>`** read and
+  change the settings of a running proxy through the control socket. `mode` is `auto` or
+  `global`; `http3` is `off`, `on` (`--http3`) or `only` (`--http3-only`) and applies to new
+  tunnels. `set http3 on|only` is refused when the gateway is not `wss://` or an upstream proxy
+  is set. Changes are not written to the config file.
+- **`ws2tcp-local reset-quic`** drops the cached HTTP/3 connection through the control socket.
+- `netstat`, `config` and `reset-quic` use `$XDG_RUNTIME_DIR/ws2tcp-local.sock` when
+  `--control` is omitted.
+
+### Removed
+
+- **`SIGUSR1` and `SIGUSR2` are no longer handled.** Use `config set mode global|auto` instead
+  of `SIGUSR1` (which toggled the mode) and `reset-quic` instead of `SIGUSR2`. They need the
+  proxy to be started with `--control`. A service that sent `kill -USR2` must run
+  `ws2tcp-local reset-quic` instead.
+
+Requires `ws2tcp-local-core` 0.7.0.
+
 ## 0.6.0 - 2026-10-10
 
 ### Added
