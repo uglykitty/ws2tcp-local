@@ -329,22 +329,22 @@ mod tests {
         assert!(args.control.is_some());
     }
 
-    fn http3_of(extra: &[&str]) -> (bool, bool) {
+    fn http3_of(extra: &[&str]) -> Http3Mode {
         let mut argv = vec!["ws2tcp-local", "--gateway", "wss://example.com"];
         argv.extend_from_slice(extra);
         let settings = Settings::resolve(Args::try_parse_from(argv).unwrap().into()).unwrap();
-        (settings.http3, settings.http3_only)
+        settings.http3
     }
 
     #[test]
     fn http3_takes_off_on_or_only() {
-        assert_eq!(http3_of(&[]), (false, false));
-        assert_eq!(http3_of(&["--http3", "off"]), (false, false));
-        assert_eq!(http3_of(&["--http3", "on"]), (true, false));
-        assert_eq!(http3_of(&["--http3=only"]), (true, true));
+        assert_eq!(http3_of(&[]), Http3Mode::Off);
+        assert_eq!(http3_of(&["--http3", "off"]), Http3Mode::Off);
+        assert_eq!(http3_of(&["--http3", "on"]), Http3Mode::Preferred);
+        assert_eq!(http3_of(&["--http3=only"]), Http3Mode::Only);
         // Without a value it is on, as it was when it was a plain flag.
-        assert_eq!(http3_of(&["--http3"]), (true, false));
-        assert_eq!(http3_of(&["--http3", "--insecure"]), (true, false));
+        assert_eq!(http3_of(&["--http3"]), Http3Mode::Preferred);
+        assert_eq!(http3_of(&["--http3", "--insecure"]), Http3Mode::Preferred);
     }
 
     #[test]
