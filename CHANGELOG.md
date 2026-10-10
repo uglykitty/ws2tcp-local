@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.0 - 2026-10-10
+
+### Changed
+
+- Built on `ws2tcp-local-core` 0.9.0, where the HTTP/3 mode is a single setting. The command
+  line and the config file behave as in 0.8.0.
+
 ## 0.8.0 - 2026-10-10
 
 ### Changed
