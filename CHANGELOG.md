@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.0 - 2026-10-10
+
+### Changed
+
+- **`--http3` takes `off`, `on` or `only`, and `--http3-only` is removed.** `--http3` without a
+  value is `on`, as it was. `--http3 only` is the former `--http3-only`: tunnels fail instead of
+  falling back to TCP, and the proxy refuses to start with a `ws://` gateway or with
+  `--upstream-proxy`. `--http3 off` now overrides an `http3` from the config file.
+- **`http3` in the config file takes `"off"`, `"on"` or `"only"`** (`true` and `false` still work,
+  as `"on"` and `"off"`). `http3_only = true` is no longer accepted: the proxy refuses to start
+  and says to use `http3 = "only"`.
+
+Requires `ws2tcp-local-core` 0.8.0.
+
 ## 0.7.0 - 2026-10-10
 
 ### Added
