@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, path::PathBuf};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use ws2tcp_local_core::{AuthMode, ProxyMode, SettingsOverrides};
+use ws2tcp_local_core::{AuthMode, Http3Mode, ProxyMode, SettingsOverrides};
 
 pub const CONFIG_TEMPLATE: &str = include_str!("../examples/ws2tcp-local.toml");
 
@@ -73,18 +73,18 @@ pub struct Args {
     #[arg(long)]
     pub insecure: bool,
 
-    /// Open gateway tunnels over HTTP/3 (WebSocket over QUIC, RFC 9220), falling back to HTTP/1.1
-    /// over TCP when that fails. Needs a wss:// gateway, and is ignored with --upstream-proxy.
-    /// Default: disabled.
-    #[arg(long)]
-    pub http3: bool,
-
-    /// Like --http3, but never fall back to HTTP/1.1 over TCP: when HTTP/3 does not work, tunnels
-    /// fail. Needs a wss:// gateway and no --upstream-proxy, or the proxy refuses to start. Only
-    /// tunnels are affected; token login still uses HTTPS over TCP. Implies --http3. Default:
-    /// disabled.
-    #[arg(long)]
-    pub http3_only: bool,
+    /// How gateway tunnels use HTTP/3 (WebSocket over QUIC, RFC 9220): off is TCP only; on, or no
+    /// value, tries HTTP/3 and falls back to HTTP/1.1 over TCP when that fails; only never falls
+    /// back, so tunnels fail when HTTP/3 does not work. Needs a wss:// gateway. on is ignored
+    /// with --upstream-proxy, and only makes the proxy refuse to start with one. Only tunnels
+    /// are affected; token login still uses HTTPS over TCP. Default: off.
+    #[arg(
+        long,
+        value_name = "MODE",
+        num_args = 0..=1,
+        default_missing_value = "on"
+    )]
+    pub http3: Option<CliHttp3Mode>,
 
     /// Send all outgoing connections through this proxy server: http://[user:pass@]host[:port],
     /// socks5h://[user:pass@]host[:port] (the proxy resolves hostnames) or socks5://... (resolved
@@ -159,6 +159,23 @@ impl ConfigKey {
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum CliHttp3Mode {
+    Off,
+    On,
+    Only,
+}
+
+impl From<CliHttp3Mode> for Http3Mode {
+    fn from(mode: CliHttp3Mode) -> Self {
+        match mode {
+            CliHttp3Mode::Off => Http3Mode::Off,
+            CliHttp3Mode::On => Http3Mode::Preferred,
+            CliHttp3Mode::Only => Http3Mode::Only,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum CliAuthMode {
     Basic,
     Token,
@@ -203,8 +220,7 @@ impl From<Args> for SettingsOverrides {
             rule_refresh_interval_secs: args.rule_refresh_interval_secs,
             proxy_mode: args.proxy_mode.map(Into::into),
             insecure: args.insecure,
-            http3: args.http3,
-            http3_only: args.http3_only,
+            http3: args.http3.map(Into::into),
             upstream_proxy: args.upstream_proxy,
         }
     }
@@ -269,7 +285,6 @@ mod tests {
         assert!(help.contains("--upstream-proxy"));
         assert!(help.contains("--insecure"));
         assert!(help.contains("--http3"));
-        assert!(help.contains("--http3-only"));
         assert!(!help.contains("--verify-server-certificate"));
     }
 
@@ -314,18 +329,43 @@ mod tests {
         assert!(args.control.is_some());
     }
 
+    fn http3_of(extra: &[&str]) -> (bool, bool) {
+        let mut argv = vec!["ws2tcp-local", "--gateway", "wss://example.com"];
+        argv.extend_from_slice(extra);
+        let settings = Settings::resolve(Args::try_parse_from(argv).unwrap().into()).unwrap();
+        (settings.http3, settings.http3_only)
+    }
+
     #[test]
-    fn parses_http3_only_into_the_settings() {
-        let args = Args::try_parse_from([
-            "ws2tcp-local",
-            "--gateway",
-            "wss://example.com",
-            "--http3-only",
-        ])
-        .unwrap();
-        assert!(args.http3_only);
-        assert!(!args.http3);
-        let settings = Settings::resolve(args.into()).unwrap();
-        assert!(settings.http3_only);
+    fn http3_takes_off_on_or_only() {
+        assert_eq!(http3_of(&[]), (false, false));
+        assert_eq!(http3_of(&["--http3", "off"]), (false, false));
+        assert_eq!(http3_of(&["--http3", "on"]), (true, false));
+        assert_eq!(http3_of(&["--http3=only"]), (true, true));
+        // Without a value it is on, as it was when it was a plain flag.
+        assert_eq!(http3_of(&["--http3"]), (true, false));
+        assert_eq!(http3_of(&["--http3", "--insecure"]), (true, false));
+    }
+
+    #[test]
+    fn http3_only_is_no_longer_a_flag() {
+        assert!(
+            Args::try_parse_from([
+                "ws2tcp-local",
+                "--gateway",
+                "wss://example.com",
+                "--http3-only"
+            ])
+            .is_err()
+        );
+        assert!(
+            Args::try_parse_from([
+                "ws2tcp-local",
+                "--gateway",
+                "wss://example.com",
+                "--http3=x"
+            ])
+            .is_err()
+        );
     }
 }

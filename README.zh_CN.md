@@ -204,9 +204,8 @@ ws2tcp-local config set http3 on --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock" 
 ```
 
 `mode` 为 `auto` 或 `global`。切换到 `auto` 时会先下载规则，加载完成前保持当前模式；
-如果加载失败，未命中域名将直连。`http3` 为 `off`、`on`（先走 HTTP/3，失败回落到 TCP，
-等同 `--http3`）或 `only`（等同 `--http3-only`），对新建隧道生效；gateway 不是
-`wss://` 或设置了上游代理时会被拒绝。修改会记录到日志，不会写回配置文件。
+如果加载失败，未命中域名将直连。`http3` 为 `off`、`on`（先走 HTTP/3，失败回落到 TCP）或 `only`（不回退），
+对新建隧道生效；gateway 不是 `wss://` 或设置了上游代理时会被拒绝。修改会记录到日志，不会写回配置文件。
 `ws2tcp-local reset-quic --control <PATH>` 会丢弃缓存的 HTTP/3 连接，下一条隧道将重新
 建立连接。不再处理 `SIGUSR1` 和 `SIGUSR2`。Windows 不支持 control socket。
 
@@ -276,11 +275,10 @@ upstream_proxy = "http://user:pass@proxy.example:3128"
 --proxy-mode <MODE>    代理模式：auto 或 global。默认值：auto
 --insecure             跳过远端 WebSocket gateway 的 TLS 服务器证书校验。
                        默认：关闭
---http3                经 HTTP/3（QUIC 上的 WebSocket，RFC 9220）建立 gateway 隧道，
-                       失败时回退到 TCP 上的 HTTP/1.1。需要 wss:// gateway。
-                       默认：关闭
---http3-only           与 --http3 相同，但失败时隧道直接失败，不回退 TCP。需要
-                       wss:// gateway 且不能使用 --upstream-proxy。默认：关闭
+--http3 [<MODE>]       gateway 隧道使用 HTTP/3（QUIC 上的 WebSocket，RFC 9220）
+                       的方式：off、on（失败时回退到 TCP 上的 HTTP/1.1）或 only
+                       （不回退，失败则隧道失败）。省略取值时为 on。需要 wss://
+                       gateway；only 还不能使用 --upstream-proxy。默认：off
 --control <PATH>       在该 Unix socket 上提供 HTTP/3 连接快照，供
                        `ws2tcp-local netstat --control <PATH>` 查看。默认：不启用
 --upstream-proxy <URL> 让所有出口连接经过代理服务器：http://、socks5h:// 或

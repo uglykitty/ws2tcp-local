@@ -56,16 +56,13 @@ insecure = false
 # certificate, such as a self-signed certificate used during development.
 # insecure = false
 #
-# Optional. Defaults to false. Set to true to open the gateway tunnels as WebSocket
-# over HTTP/3 (QUIC, RFC 9220), all on one shared connection, falling back to
-# HTTP/1.1 over TCP when that fails. Needs a wss:// gateway that supports
-# WebSocket over HTTP/3 on UDP, and is ignored together with upstream_proxy.
-# http3 = false
-#
-# Optional. Defaults to false. Like http3, but without the fallback: when HTTP/3 does not
-# work, tunnels fail instead of using TCP. Refused at startup with a ws:// gateway or together
-# with upstream_proxy. Implies http3.
-# http3_only = false
+# Optional. Defaults to "off". How the gateway tunnels use HTTP/3 (QUIC, RFC 9220), all on one
+# shared connection. "off" is TCP only. "on" tries HTTP/3 and falls back to HTTP/1.1 over TCP
+# when that fails. "only" never falls back: when HTTP/3 does not work, tunnels fail. Needs a
+# wss:// gateway that supports WebSocket over HTTP/3 on UDP. "on" is ignored together with
+# upstream_proxy; "only" is refused at startup with a ws:// gateway or with upstream_proxy.
+# true and false still work, as "on" and "off". The former http3_only = true is now "only".
+# http3 = "off"
 #
 # Optional. Merge one Squid dstdomain entry per line with the built-in gfwlist.
 # Relative paths are resolved from this config file's directory. In auto mode,

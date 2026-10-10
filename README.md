@@ -184,7 +184,7 @@ buffer_size = 16384
 log_level = "ws2tcp_local=info"
 proxy_mode = "auto"
 insecure = false
-# http3 = true
+# http3 = "on"
 custom_domain_rules = "custom-domains.txt"
 rule_refresh_interval_secs = 60
 ```
@@ -290,8 +290,7 @@ ws2tcp-local config set http3 on --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock" 
 
 `mode` is `auto` or `global`. Switching to `auto` downloads the rules first and keeps the
 current mode until they are loaded; if that fails, unmatched domains are connected directly.
-`http3` is `off`, `on` (HTTP/3 first, TCP as the fallback; the same as `--http3`) or `only`
-(the same as `--http3-only`); it applies to new tunnels, and it is refused when the gateway
+`http3` is `off`, `on` (HTTP/3 first, TCP as the fallback) or `only` (no fallback); it applies to new tunnels, and it is refused when the gateway
 is not `wss://` or an upstream proxy is set. Changes are logged and not written back to the
 config file. `ws2tcp-local reset-quic --control <PATH>` drops the cached HTTP/3 connection,
 so the next tunnel dials a new one. `SIGUSR1` and `SIGUSR2` are no longer handled. The
@@ -345,17 +344,21 @@ turns off a proxy set in the config file.
 
 ## HTTP/3
 
-`--http3` (or `http3 = true` in the config file) opens the gateway tunnels as WebSocket over
-HTTP/3 (RFC 9220) instead of HTTP/1.1, all of them on one shared QUIC connection. The gateway
-(and any reverse proxy in front of `ws2tcp-router`) must support WebSocket over HTTP/3 on UDP.
-If HTTP/3 fails (UDP blocked, no RFC 9220 support), connections fall back to HTTP/1.1 over TCP
-for the next 60 seconds. It applies only to `wss://` gateways, and is ignored with
-`--upstream-proxy`, since QUIC cannot pass through an HTTP or SOCKS5 proxy. The token endpoints
-still use HTTP over TCP.
+`--http3 <MODE>` (or `http3 = "<MODE>"` in the config file) sets how the gateway tunnels use
+HTTP/3 (RFC 9220) instead of HTTP/1.1, all of them on one shared QUIC connection:
 
-`--http3-only` (or `http3_only = true`) is `--http3` without the fallback: when HTTP/3 does not
-work, tunnels fail instead of using TCP. Because there is nothing to fall back to, the proxy
-refuses to start with a `ws://` gateway or with `--upstream-proxy`. It implies `--http3`.
+- `off` (the default) uses TCP only.
+- `on` (also plain `--http3`, and `http3 = true`) tries HTTP/3 first. If it fails (UDP blocked, no
+  RFC 9220 support), connections fall back to HTTP/1.1 over TCP for the next 60 seconds.
+- `only` has no fallback: when HTTP/3 does not work, tunnels fail instead of using TCP. Because
+  there is nothing to fall back to, the proxy refuses to start with a `ws://` gateway or with
+  `--upstream-proxy`.
+
+The gateway (and any reverse proxy in front of `ws2tcp-router`) must support WebSocket over HTTP/3
+on UDP. It applies only to `wss://` gateways, and `on` is ignored with `--upstream-proxy`, since
+QUIC cannot pass through an HTTP or SOCKS5 proxy. The token endpoints still use HTTP over TCP.
+`--http3-only` and `http3_only = true` were replaced by `--http3 only` and `http3 = "only"`; an
+old config file with `http3_only = true` is refused.
 
 ### Inspecting the QUIC connection
 
@@ -403,12 +406,11 @@ bytes sent and received, and says when HTTP/3 is paused after a failure (tunnels
 --proxy-mode <MODE>    Proxy mode: auto or global. Default: auto
 --insecure             Skip verification of the remote WebSocket gateway TLS
                        certificate. Default: disabled
---http3                Open gateway tunnels over HTTP/3 (WebSocket over QUIC,
-                       RFC 9220), falling back to HTTP/1.1 over TCP. Needs a
-                       wss:// gateway. Default: disabled
---http3-only           Like --http3, but tunnels fail instead of falling back to
-                       TCP. Needs a wss:// gateway and no --upstream-proxy.
-                       Default: disabled
+--http3 [<MODE>]       How gateway tunnels use HTTP/3 (WebSocket over QUIC,
+                       RFC 9220): off, on (fall back to HTTP/1.1 over TCP) or
+                       only (no fallback). Without a value: on. Needs a wss://
+                       gateway; only also needs no --upstream-proxy.
+                       Default: off
 --control <PATH>       Listen on this Unix socket for netstat, config and
                        reset-quic commands with the same --control <PATH>.
                        Default: none
