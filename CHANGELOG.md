@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.6.0 - 2026-10-10
+
+### Added
+
+- **`--http3-only`** (`http3_only = true` in the config file) is `--http3` without the
+  fallback: when HTTP/3 does not work, tunnels fail instead of using TCP, and no TCP period
+  begins. The proxy refuses to start with a `ws://` gateway or with `--upstream-proxy`. It
+  implies `--http3`. Only tunnels are affected; the token login still uses HTTPS over TCP.
+- **`--control <PATH>` and `ws2tcp-local netstat`** show the HTTP/3 connections of a running
+  proxy. With `--control`, the proxy serves a JSON snapshot on a Unix socket (mode 0600; Unix
+  only), and `ws2tcp-local netstat --control <PATH>` prints each QUIC connection's addresses,
+  state, RTT, open tunnels, lost packets and UDP bytes, and whether HTTP/3 is paused. `--json`
+  prints the raw snapshot, and `--watch <SECONDS>` refreshes it and adds `Tx/s` and `Rx/s`.
+  The table fits the terminal width. Requires `ws2tcp-local-core` 0.6.0.
+
 ## 0.5.2 - 2026-10-10
 
 ### Added
