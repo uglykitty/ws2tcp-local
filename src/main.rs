@@ -54,6 +54,7 @@ async fn main() -> Result<()> {
 
     let (mode_updates_tx, mode_updates_rx) = mpsc::unbounded_channel();
     spawn_proxy_mode_toggle(settings.proxy_mode, mode_updates_tx);
+    spawn_quic_reset();
 
     let result = run_proxy_with_mode_updates(
         settings,
@@ -124,6 +125,31 @@ fn spawn_proxy_mode_toggle(initial: ProxyMode, updates: mpsc::UnboundedSender<Pr
 
 #[cfg(not(unix))]
 fn spawn_proxy_mode_toggle(_initial: ProxyMode, _updates: mpsc::UnboundedSender<ProxyMode>) {}
+
+/// Drop the cached HTTP/3 connection to the gateway every time the process receives SIGUSR2, so
+/// the next tunnel resolves the gateway again and dials a new QUIC connection.
+#[cfg(unix)]
+fn spawn_quic_reset() {
+    use tokio::signal::unix::{SignalKind, signal};
+
+    let mut sigusr2 = match signal(SignalKind::user_defined2()) {
+        Ok(sigusr2) => sigusr2,
+        Err(err) => {
+            warn!(error = %err, "failed to listen for SIGUSR2; the QUIC connection cannot be reset by signal");
+            return;
+        }
+    };
+
+    tokio::spawn(async move {
+        while sigusr2.recv().await.is_some() {
+            info!("received SIGUSR2; the next tunnel will dial a new QUIC connection");
+            ws2tcp_local_core::reset_sessions().await;
+        }
+    });
+}
+
+#[cfg(not(unix))]
+fn spawn_quic_reset() {}
 
 fn warn_if_basic_auth_may_leak(basic_auth_from_cli: bool, basic_auth_from_environment: bool) {
     if basic_auth_from_cli {
