@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.0 - 2026-10-12
+
+### Added
+
+- **`--gfwlist-url` and `gfwlist_urls` set where the gfwlist is downloaded from.** Repeat the flag,
+  or list the URLs in the config file, to try several in order. They replace the built-in URLs,
+  which are not tried after them. Requires `ws2tcp-local-core` 0.10.0.
+
+### Changed
+
+- The primary built-in gfwlist URL is
+  `https://wangguofang.net/raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt`, without
+  `refs/heads`.
+
 ## 0.9.0 - 2026-10-10
 
 ### Changed
