@@ -38,7 +38,7 @@ insecure = false
 # Use a path prefix, for example wss://example.com/router, only when a reverse
 # proxy strips that prefix before forwarding to ws2tcp-router.
 #
-# By default, ws2tcp-local runs in auto mode and checks the built-in gfwlist URL
+# By default, ws2tcp-local runs in auto mode and checks the gfwlist URLs
 # at startup and on the configured refresh interval, downloading only when the remote
 # Last-Modified timestamp differs from the cached file timestamp. Matched
 # domains use this gateway; unmatched domains and the initial rule-load failure
@@ -50,6 +50,14 @@ insecure = false
 #
 # Optional. Rule list refresh interval in seconds. Defaults to 60.
 # rule_refresh_interval_secs = 60
+#
+# Optional. Where to download the gfwlist from, tried in order until one works.
+# A list here replaces the built-in one; the built-in URLs are not tried after it.
+# Defaults to:
+# gfwlist_urls = [
+#   "https://wangguofang.net/raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt",
+#   "https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt",
+# ]
 #
 # Optional. Defaults to false, which enables normal TLS server certificate
 # validation. Set to true only when connecting to a gateway with an untrusted

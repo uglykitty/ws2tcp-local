@@ -17,16 +17,17 @@ WebSocket router，且不会下载 gfwlist。它同时支持 HTTP `CONNECT` 隧�
 未命中:   browser -> ws2tcp-local -> <host>:<port>
 ```
 
-在 `auto` 代理模式下，`ws2tcp-local` 启动时会从下面内置 URL 检查并解析
+在 `auto` 代理模式下，`ws2tcp-local` 启动时会从下面的 URL 检查并解析
 gfwlist，之后按可配置间隔刷新，默认 60 秒。优先使用主 URL，主 URL 不可达时
 回退到 GitLab：
 
 ```text
-https://wangguofang.net/raw.githubusercontent.com/gfwlist/gfwlist/refs/heads/master/gfwlist.txt
+https://wangguofang.net/raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt
 https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
 ```
 
-这些 URL 硬编码在程序中。下载后的 `gfwlist.txt` 会缓存到当前平台的缓存目录：
+要使用其他来源，可以在配置文件里设置 `gfwlist_urls`，或者重复使用 `--gfwlist-url`。
+这些 URL 按顺序尝试，并且会替换内置的 URL：之后不会再尝试内置 URL。下载后的 `gfwlist.txt` 会缓存到当前平台的缓存目录：
 
 - Linux 和其他类 Unix 系统：`$XDG_CACHE_HOME/ws2tcp-local/gfwlist.txt`；未设置
   `XDG_CACHE_HOME` 时使用 `~/.cache/ws2tcp-local/gfwlist.txt`。
@@ -144,6 +145,7 @@ proxy_mode = "auto"
 insecure = false
 custom_domain_rules = "custom-domains.txt"
 rule_refresh_interval_secs = 60
+# gfwlist_urls = ["https://mirror.example/gfwlist.txt"]
 ```
 
 启动时指定配置文件：

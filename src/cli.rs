@@ -65,6 +65,11 @@ pub struct Args {
     #[arg(long)]
     pub rule_refresh_interval_secs: Option<u64>,
 
+    /// Where to download the gfwlist from in auto proxy mode. Repeat to add fallbacks, tried in
+    /// order; the given list replaces the built-in one. An empty value means the built-in list.
+    #[arg(long = "gfwlist-url", value_name = "URL")]
+    pub gfwlist_urls: Vec<String>,
+
     /// Proxy mode: auto uses gfwlist rules, global proxies every request. Default: auto.
     #[arg(long)]
     pub proxy_mode: Option<CliProxyMode>,
@@ -218,6 +223,7 @@ impl From<Args> for SettingsOverrides {
             log_level: args.log_level,
             custom_domain_rules: args.custom_domain_rules,
             rule_refresh_interval_secs: args.rule_refresh_interval_secs,
+            gfwlist_urls: (!args.gfwlist_urls.is_empty()).then_some(args.gfwlist_urls),
             proxy_mode: args.proxy_mode.map(Into::into),
             insecure: args.insecure,
             http3: args.http3.map(Into::into),
@@ -270,6 +276,36 @@ mod tests {
         ])
         .unwrap();
         assert!(Settings::resolve(args.into()).is_err());
+    }
+
+    #[test]
+    fn repeated_gfwlist_urls_replace_the_built_in_list() {
+        let args =
+            Args::try_parse_from(["ws2tcp-local", "--gateway", "wss://example.com"]).unwrap();
+        let settings = Settings::resolve(args.into()).unwrap();
+        assert_eq!(
+            settings.gfwlist_urls,
+            ws2tcp_local_core::DEFAULT_GFWLIST_URLS
+        );
+
+        let args = Args::try_parse_from([
+            "ws2tcp-local",
+            "--gateway",
+            "wss://example.com",
+            "--gfwlist-url",
+            "https://a.example/gfwlist.txt",
+            "--gfwlist-url",
+            "https://b.example/gfwlist.txt",
+        ])
+        .unwrap();
+        let settings = Settings::resolve(args.into()).unwrap();
+        assert_eq!(
+            settings.gfwlist_urls,
+            [
+                "https://a.example/gfwlist.txt",
+                "https://b.example/gfwlist.txt"
+            ]
+        );
     }
 
     #[test]

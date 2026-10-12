@@ -42,16 +42,18 @@ GET http://example.com/path HTTP/1.1
 origin-form, and forwards the response back to the client.
 
 In `auto` proxy mode, `ws2tcp-local` checks and parses the original gfwlist from
-these built-in URLs at startup, then refreshes it on a configurable interval that
+these URLs at startup, then refreshes it on a configurable interval that
 defaults to 60 seconds. The primary URL is tried first, falling back to GitLab
 when it is unreachable:
 
 ```text
-https://wangguofang.net/raw.githubusercontent.com/gfwlist/gfwlist/refs/heads/master/gfwlist.txt
+https://wangguofang.net/raw.githubusercontent.com/gfwlist/gfwlist/master/gfwlist.txt
 https://gitlab.com/gfwlist/gfwlist/raw/master/gfwlist.txt
 ```
 
-The URLs are built into the program. The downloaded `gfwlist.txt` is cached in
+To use other sources, set `gfwlist_urls` in the config file or repeat
+`--gfwlist-url`. The URLs are tried in order, and they replace the built-in
+ones: the built-in URLs are not tried after them. The downloaded `gfwlist.txt` is cached in
 the platform cache directory:
 
 - Linux and other Unix-like systems: `$XDG_CACHE_HOME/ws2tcp-local/gfwlist.txt`,
@@ -187,6 +189,7 @@ insecure = false
 # http3 = "on"
 custom_domain_rules = "custom-domains.txt"
 rule_refresh_interval_secs = 60
+# gfwlist_urls = ["https://mirror.example/gfwlist.txt"]
 ```
 
 ```bash
