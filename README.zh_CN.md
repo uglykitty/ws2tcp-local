@@ -196,7 +196,9 @@ cargo run -- --gateway wss://example.com --proxy-mode global
 `ws2tcp-local config --control <PATH>` 查看和修改运行中进程的设置：
 
 子命令（`netstat`、`config`、`reset-quic`）省略 `--control` 时默认使用
-`$XDG_RUNTIME_DIR/ws2tcp-local.sock`，代理用这个路径启动时可以不写：
+`$XDG_RUNTIME_DIR/ws2tcp-local.sock`，代理用这个路径启动时可以不写。macOS 没有
+`$XDG_RUNTIME_DIR`，默认改用 `~/Library/Application Support/ws2tcp-local/ws2tcp-local.sock`
+（该目录需已存在，配置文件放在那里时就有）：
 
 ```bash
 ws2tcp-local config get --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"            # 全部设置

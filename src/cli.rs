@@ -100,7 +100,8 @@ pub struct Args {
 
     /// Unix socket path. While the proxy runs it listens there: `ws2tcp-local netstat`,
     /// `config` and `reset-quic` with the same --control PATH talk to it. Omitted, the proxy creates no socket and the subcommands use
-    /// $XDG_RUNTIME_DIR/ws2tcp-local.sock. Linux and other Unix systems only.
+    /// $XDG_RUNTIME_DIR/ws2tcp-local.sock (on macOS, when that is unset, ~/Library/Application
+    /// Support/ws2tcp-local/ws2tcp-local.sock). Linux, macOS and other Unix systems only.
     #[arg(long, global = true, value_name = "PATH")]
     pub control: Option<PathBuf>,
 }
@@ -128,10 +129,25 @@ pub enum Command {
 }
 
 /// The socket the subcommands use when --control is omitted: `ws2tcp-local.sock` in
-/// `$XDG_RUNTIME_DIR`, where the proxy is usually started with `--control`.
+/// `$XDG_RUNTIME_DIR`, where the proxy is usually started with `--control`. macOS has no such
+/// directory, so there it falls back to the folder that holds the config file,
+/// `~/Library/Application Support/ws2tcp-local/`.
 pub fn default_control_path() -> Option<PathBuf> {
-    let dir = std::env::var_os("XDG_RUNTIME_DIR").filter(|dir| !dir.is_empty())?;
-    Some(PathBuf::from(dir).join("ws2tcp-local.sock"))
+    match std::env::var_os("XDG_RUNTIME_DIR").filter(|dir| !dir.is_empty()) {
+        Some(dir) => Some(PathBuf::from(dir).join("ws2tcp-local.sock")),
+        None => fallback_control_path(),
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn fallback_control_path() -> Option<PathBuf> {
+    let home = std::env::var_os("HOME").filter(|home| !home.is_empty())?;
+    Some(PathBuf::from(home).join("Library/Application Support/ws2tcp-local/ws2tcp-local.sock"))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn fallback_control_path() -> Option<PathBuf> {
+    None
 }
 
 #[derive(Debug, Subcommand)]

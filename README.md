@@ -282,7 +282,9 @@ On Unix, start the proxy with `--control <PATH>` and change settings of the runn
 process with `ws2tcp-local config --control <PATH>`:
 
 The subcommands (`netstat`, `config`, `reset-quic`) use `$XDG_RUNTIME_DIR/ws2tcp-local.sock`
-when `--control` is omitted, so with that path you can leave it out:
+when `--control` is omitted, so with that path you can leave it out. macOS has no
+`$XDG_RUNTIME_DIR`; there the default is `~/Library/Application Support/ws2tcp-local/ws2tcp-local.sock`
+(the directory must exist, as it does once the config file is there):
 
 ```bash
 ws2tcp-local config get --control "$XDG_RUNTIME_DIR/ws2tcp-local.sock"            # all settings
