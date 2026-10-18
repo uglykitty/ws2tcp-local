@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.0 - 2026-10-18
+
+### Changed
+
+- On macOS, where `$XDG_RUNTIME_DIR` does not exist, `netstat`, `config` and `reset-quic` use
+  `~/Library/Application Support/ws2tcp-local/ws2tcp-local.sock` when `--control` is omitted.
+  Linux and other systems behave as before.
+
 ## 0.10.0 - 2026-10-12
 
 ### Added
