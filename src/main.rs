@@ -1,3 +1,4 @@
+use std::io::IsTerminal;
 use std::sync::Arc;
 
 use anyhow::{Result, anyhow};
@@ -23,13 +24,17 @@ fn init_logging(log_level: Option<&str>) -> Result<()> {
     // keep the timestamp since JOURNAL_STREAM won't be set there.
     let running_under_systemd_journal = std::env::var_os("JOURNAL_STREAM").is_some();
 
+    // fmt() writes to stdout; only emit ANSI colors when it is a terminal and NO_COLOR
+    // (https://no-color.org) is not set, so redirected files and the journal stay clean.
+    let use_ansi = std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
+
+    let builder = tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_ansi(use_ansi);
     let init_result = if running_under_systemd_journal {
-        tracing_subscriber::fmt()
-            .with_env_filter(filter)
-            .without_time()
-            .try_init()
+        builder.without_time().try_init()
     } else {
-        tracing_subscriber::fmt().with_env_filter(filter).try_init()
+        builder.try_init()
     };
 
     init_result.map_err(|err| anyhow!("failed to initialize logging: {err}"))
