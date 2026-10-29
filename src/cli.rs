@@ -33,7 +33,7 @@ pub struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "127.0.0.1:1080")]
     pub socks_listen: Option<SocketAddr>,
 
-    /// Base WebSocket gateway URL. Example: ws://1.2.3.4:8000
+    /// Base WebSocket gateway URL. Example: ws://1.2.3.4:8000. Default: wss://wangguofang.net/tunnel
     #[arg(long)]
     pub gateway: Option<String>,
 
