@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.0 - 2026-10-29
+
+### Changed
+
+- `--gateway` defaults to `wss://wangguofang.net/tunnel`, so it is no longer required when
+  neither the command line nor the config file sets it. Builds on `ws2tcp-local-core` 0.11.0.
+- Log output uses ANSI colors only when stdout is a terminal and `NO_COLOR` is not set, so
+  redirected logs and the systemd journal no longer contain escape codes.
+
 ## 0.11.0 - 2026-10-18
 
 ### Changed
